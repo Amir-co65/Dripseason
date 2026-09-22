@@ -1,0 +1,7 @@
+-- Optional: sample data for LOCAL development only (via `supabase db reset`).
+-- This does NOT run against your real hosted Supabase project automatically -
+-- it's only used by the Supabase CLI's local Postgres instance.
+--
+-- Left empty for now since there's no inventory schema yet. Once auth is
+-- confirmed working, you can sign up a real user through the app itself
+-- rather than seeding fake ones here.

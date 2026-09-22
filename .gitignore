@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+dist-ssr/
+
+# env files - NEVER commit these, they hold your Supabase keys
+.env
+.env.local
+.env.*.local
+
+# editor/OS
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+*.log
+
+# supabase local dev
+supabase/.branches
+supabase/.temp

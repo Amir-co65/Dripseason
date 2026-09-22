@@ -1,0 +1,24 @@
+# This file is only needed if you install the Supabase CLI and run a local
+# copy of Supabase on your own machine for development. If you're just using
+# the hosted Supabase dashboard (the simpler path for beginners - see the
+# README), you can ignore this file entirely.
+
+project_id = "project26-web"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:5173"
+additional_redirect_urls = ["http://127.0.0.1:5173"]
+jwt_expiry = 3600
+enable_signup = true
