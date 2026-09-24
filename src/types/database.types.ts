@@ -31,6 +31,7 @@ export interface Database {
         };
         Insert: { id: string; email: string; full_name?: string | null; avatar_url?: string | null };
         Update: { full_name?: string | null; avatar_url?: string | null; role?: UserRole; is_active?: boolean };
+        Relationships: [];
       };
 
       activity_logs: {
@@ -51,6 +52,7 @@ export interface Database {
           metadata?: Record<string, unknown>;
         };
         Update: never;
+        Relationships: [];
       };
 
       notifications: {
@@ -72,6 +74,7 @@ export interface Database {
           type?: NotificationType;
         };
         Update: { is_read?: boolean };
+        Relationships: [];
       };
 
       chapters: {
@@ -96,6 +99,7 @@ export interface Database {
           created_by?: string | null;
         };
         Update: Partial<{ name: string; date_range: string | null; chapter_number: number | null }>;
+        Relationships: [];
       };
 
       packages: {
@@ -137,6 +141,7 @@ export interface Database {
           shipping_code: string | null;
           arrival_status: ArrivalStatus | null;
         }>;
+        Relationships: [];
       };
 
       inventory_items: {
@@ -212,6 +217,7 @@ export interface Database {
           plick_posting_status: PostingStatus;
           plick_posting_account_id: string | null;
         }>;
+        Relationships: [];
       };
 
       item_media: {
@@ -237,6 +243,7 @@ export interface Database {
           created_by?: string | null;
         };
         Update: Partial<{ position: number }>;
+        Relationships: [];
       };
 
       sales: {
@@ -281,6 +288,7 @@ export interface Database {
           buyer_note: string | null;
           marketplace_account_id: string | null;
         }>;
+        Relationships: [];
       };
 
       marketplace_accounts: {
@@ -329,6 +337,7 @@ export interface Database {
           notes: string | null;
           banned: boolean;
         }>;
+        Relationships: [];
       };
 
       posting_accounts: {
@@ -351,12 +360,14 @@ export interface Database {
           legacy_raw?: Record<string, unknown> | null;
         };
         Update: Partial<{ display_name: string; marketplace_account_id: string | null }>;
+        Relationships: [];
       };
 
       wallet_balances: {
         Row: { bucket: WalletBucket; balance: number; updated_at: string };
         Insert: { bucket: WalletBucket; balance?: number };
         Update: never; // always changed via wallet_transactions, never directly
+        Relationships: [];
       };
 
       wallet_transactions: {
@@ -380,6 +391,7 @@ export interface Database {
           created_by?: string | null;
         };
         Update: never;
+        Relationships: [];
       };
 
       closet_sections: {
@@ -400,12 +412,14 @@ export interface Database {
           created_by?: string | null;
         };
         Update: Partial<{ name: string }>;
+        Relationships: [];
       };
 
       closet_items: {
         Row: { id: string; closet_section_id: string; inventory_item_id: string; created_at: string };
         Insert: { id?: string; closet_section_id: string; inventory_item_id: string };
         Update: never;
+        Relationships: [];
       };
 
       trades: {
@@ -438,12 +452,14 @@ export interface Database {
           created_by?: string | null;
         };
         Update: Partial<{ notes: string | null; sold_item_ids: string[]; active_item_id: string | null }>;
+        Relationships: [];
       };
     };
 
     Views: {
       inventory_items_secure: {
         Row: Database["public"]["Tables"]["inventory_items"]["Row"];
+        Relationships: [];
       };
       sales_secure: {
         Row: Pick<
@@ -460,9 +476,11 @@ export interface Database {
           | "created_at"
           | "updated_at"
         >;
+        Relationships: [];
       };
       marketplace_accounts_secure: {
         Row: Omit<Database["public"]["Tables"]["marketplace_accounts"]["Row"], "legacy_raw">;
+        Relationships: [];
       };
     };
 
