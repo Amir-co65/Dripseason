@@ -1,17 +1,19 @@
 /**
- * These types describe the exact shape of our Postgres tables, so that
- * every `supabase.from('profiles')...` call in the app is fully type-checked
- * and autocompletes in your editor.
- *
- * We're writing these by hand for now, matching the migrations in
- * /supabase/migrations exactly. Later, once the Supabase CLI is set up, you
- * can generate this file automatically from your real database instead of
- * maintaining it by hand - the README explains that command. If you ever
- * add or change a column in a migration, update the matching type here too.
+ * Hand-written types matching every migration in /supabase/migrations.
+ * Once things settle, generate this file for real instead with:
+ *   npx supabase gen types typescript --project-id YOUR_PROJECT_REF > src/types/database.types.ts
+ * Until then, if you add/change a column in a migration, mirror it here too.
  */
 
 export type UserRole = "admin" | "worker";
 export type NotificationType = "info" | "success" | "warning" | "error";
+export type InventoryStatus = "available" | "listed" | "sold" | "traded" | "archived";
+export type ArrivalStatus = "arrived" | "arriving";
+export type MediaKind = "photo" | "link";
+export type Platform = "vinted" | "plick";
+export type WalletBucket = "cash" | "vinted" | "plick";
+export type PostingStatus = "needs_posting" | "skipped" | "posted";
+export type TradeKind = "standard-trade" | "return-exchange";
 
 export interface Database {
   public: {
@@ -27,21 +29,10 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: {
-          id: string;
-          email: string;
-          full_name?: string | null;
-          avatar_url?: string | null;
-          role?: UserRole;
-          is_active?: boolean;
-        };
-        Update: {
-          full_name?: string | null;
-          avatar_url?: string | null;
-          role?: UserRole;
-          is_active?: boolean;
-        };
+        Insert: { id: string; email: string; full_name?: string | null; avatar_url?: string | null };
+        Update: { full_name?: string | null; avatar_url?: string | null; role?: UserRole; is_active?: boolean };
       };
+
       activity_logs: {
         Row: {
           id: number;
@@ -59,8 +50,9 @@ export interface Database {
           entity_id?: string | null;
           metadata?: Record<string, unknown>;
         };
-        Update: never; // activity_logs is append-only, see migration 0007
+        Update: never;
       };
+
       notifications: {
         Row: {
           id: string;
@@ -79,20 +71,404 @@ export interface Database {
           message?: string | null;
           type?: NotificationType;
         };
-        Update: {
-          is_read?: boolean;
+        Update: { is_read?: boolean };
+      };
+
+      chapters: {
+        Row: {
+          id: string;
+          name: string;
+          date_range: string | null;
+          chapter_number: number | null;
+          legacy_id: string | null;
+          legacy_raw: Record<string, unknown> | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
         };
+        Insert: {
+          id?: string;
+          name: string;
+          date_range?: string | null;
+          chapter_number?: number | null;
+          legacy_id?: string | null;
+          legacy_raw?: Record<string, unknown> | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{ name: string; date_range: string | null; chapter_number: number | null }>;
+      };
+
+      packages: {
+        Row: {
+          id: string;
+          chapter_id: string;
+          title: string;
+          package_number: number | null;
+          package_date: string | null;
+          info: string | null;
+          shipping_cost: number;
+          shipping_code: string | null;
+          arrival_status: ArrivalStatus | null;
+          legacy_id: string | null;
+          legacy_raw: Record<string, unknown> | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          chapter_id: string;
+          title: string;
+          package_number?: number | null;
+          package_date?: string | null;
+          info?: string | null;
+          shipping_cost?: number;
+          shipping_code?: string | null;
+          arrival_status?: ArrivalStatus | null;
+          legacy_id?: string | null;
+          legacy_raw?: Record<string, unknown> | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          title: string;
+          package_date: string | null;
+          info: string | null;
+          shipping_cost: number;
+          shipping_code: string | null;
+          arrival_status: ArrivalStatus | null;
+        }>;
+      };
+
+      inventory_items: {
+        Row: {
+          id: string;
+          sku: string | null;
+          item_name: string;
+          brand: string | null;
+          category: string | null;
+          size: string | null;
+          color: string | null;
+          description: string | null;
+          notes: string | null;
+          purchase_price: number | null;
+          asking_price: number;
+          sold_price: number | null;
+          status: InventoryStatus;
+          package_id: string | null;
+          closet_location: string | null;
+          legacy_id: string | null;
+          legacy_public_id: string | null;
+          legacy_raw: Record<string, unknown> | null;
+          vinted_posting_status: PostingStatus;
+          vinted_posting_account_id: string | null;
+          plick_posting_status: PostingStatus;
+          plick_posting_account_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          sku?: string | null;
+          item_name: string;
+          brand?: string | null;
+          category?: string | null;
+          size?: string | null;
+          color?: string | null;
+          description?: string | null;
+          notes?: string | null;
+          purchase_price?: number | null;
+          asking_price?: number;
+          sold_price?: number | null;
+          status?: InventoryStatus;
+          package_id?: string | null;
+          closet_location?: string | null;
+          legacy_id?: string | null;
+          legacy_public_id?: string | null;
+          legacy_raw?: Record<string, unknown> | null;
+          vinted_posting_status?: PostingStatus;
+          vinted_posting_account_id?: string | null;
+          plick_posting_status?: PostingStatus;
+          plick_posting_account_id?: string | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          item_name: string;
+          sku: string | null;
+          brand: string | null;
+          category: string | null;
+          size: string | null;
+          color: string | null;
+          description: string | null;
+          notes: string | null;
+          purchase_price: number | null;
+          asking_price: number;
+          sold_price: number | null;
+          status: InventoryStatus;
+          package_id: string | null;
+          closet_location: string | null;
+          vinted_posting_status: PostingStatus;
+          vinted_posting_account_id: string | null;
+          plick_posting_status: PostingStatus;
+          plick_posting_account_id: string | null;
+        }>;
+      };
+
+      item_media: {
+        Row: {
+          id: string;
+          inventory_item_id: string;
+          kind: MediaKind;
+          storage_path: string | null;
+          external_url: string | null;
+          position: number;
+          legacy_raw: Record<string, unknown> | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          inventory_item_id: string;
+          kind: MediaKind;
+          storage_path?: string | null;
+          external_url?: string | null;
+          position?: number;
+          legacy_raw?: Record<string, unknown> | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{ position: number }>;
+      };
+
+      sales: {
+        Row: {
+          id: string;
+          inventory_item_id: string;
+          sold_price: number;
+          sale_date: string | null;
+          sale_platform: string | null;
+          buyer_note: string | null;
+          marketplace_account_id: string | null;
+          legacy_id: string | null;
+          legacy_source_chapter_name: string | null;
+          legacy_source_package_title: string | null;
+          legacy_sale_account_label: string | null;
+          legacy_sale_account_number: string | null;
+          legacy_raw: Record<string, unknown> | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          inventory_item_id: string;
+          sold_price: number;
+          sale_date?: string | null;
+          sale_platform?: string | null;
+          buyer_note?: string | null;
+          marketplace_account_id?: string | null;
+          legacy_id?: string | null;
+          legacy_source_chapter_name?: string | null;
+          legacy_source_package_title?: string | null;
+          legacy_sale_account_label?: string | null;
+          legacy_sale_account_number?: string | null;
+          legacy_raw?: Record<string, unknown> | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          sold_price: number;
+          sale_date: string | null;
+          sale_platform: string | null;
+          buyer_note: string | null;
+          marketplace_account_id: string | null;
+        }>;
+      };
+
+      marketplace_accounts: {
+        Row: {
+          id: string;
+          platform: Platform;
+          label: string;
+          posting_account_number: number | null;
+          balance: number;
+          email: string | null;
+          username: string | null;
+          password: string | null;
+          phone: string | null;
+          notes: string | null;
+          banned: boolean;
+          legacy_id: string | null;
+          legacy_raw: Record<string, unknown> | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          platform: Platform;
+          label: string;
+          posting_account_number?: number | null;
+          balance?: number;
+          email?: string | null;
+          username?: string | null;
+          password?: string | null;
+          phone?: string | null;
+          notes?: string | null;
+          banned?: boolean;
+          legacy_id?: string | null;
+          legacy_raw?: Record<string, unknown> | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          label: string;
+          posting_account_number: number | null;
+          balance: number;
+          email: string | null;
+          username: string | null;
+          password: string | null;
+          phone: string | null;
+          notes: string | null;
+          banned: boolean;
+        }>;
+      };
+
+      posting_accounts: {
+        Row: {
+          id: string;
+          platform: Platform;
+          account_number: number;
+          display_name: string;
+          marketplace_account_id: string | null;
+          legacy_raw: Record<string, unknown> | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          platform: Platform;
+          account_number: number;
+          display_name: string;
+          marketplace_account_id?: string | null;
+          legacy_raw?: Record<string, unknown> | null;
+        };
+        Update: Partial<{ display_name: string; marketplace_account_id: string | null }>;
+      };
+
+      wallet_balances: {
+        Row: { bucket: WalletBucket; balance: number; updated_at: string };
+        Insert: { bucket: WalletBucket; balance?: number };
+        Update: never; // always changed via wallet_transactions, never directly
+      };
+
+      wallet_transactions: {
+        Row: {
+          id: string;
+          bucket: WalletBucket;
+          amount: number;
+          reason: string | null;
+          related_sale_id: string | null;
+          legacy_raw: Record<string, unknown> | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          bucket: WalletBucket;
+          amount: number;
+          reason?: string | null;
+          related_sale_id?: string | null;
+          legacy_raw?: Record<string, unknown> | null;
+          created_by?: string | null;
+        };
+        Update: never;
+      };
+
+      closet_sections: {
+        Row: {
+          id: string;
+          name: string;
+          legacy_id: string | null;
+          legacy_raw: Record<string, unknown> | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          legacy_id?: string | null;
+          legacy_raw?: Record<string, unknown> | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{ name: string }>;
+      };
+
+      closet_items: {
+        Row: { id: string; closet_section_id: string; inventory_item_id: string; created_at: string };
+        Insert: { id?: string; closet_section_id: string; inventory_item_id: string };
+        Update: never;
+      };
+
+      trades: {
+        Row: {
+          id: string;
+          trade_date: string | null;
+          received_name: string;
+          kind: TradeKind;
+          notes: string | null;
+          selected_item_ids: string[];
+          sold_item_ids: string[];
+          active_item_id: string | null;
+          legacy_id: string | null;
+          legacy_raw: Record<string, unknown> | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          trade_date?: string | null;
+          received_name: string;
+          kind?: TradeKind;
+          notes?: string | null;
+          selected_item_ids?: string[];
+          sold_item_ids?: string[];
+          active_item_id?: string | null;
+          legacy_id?: string | null;
+          legacy_raw?: Record<string, unknown> | null;
+          created_by?: string | null;
+        };
+        Update: Partial<{ notes: string | null; sold_item_ids: string[]; active_item_id: string | null }>;
       };
     };
+
+    Views: {
+      inventory_items_secure: {
+        Row: Database["public"]["Tables"]["inventory_items"]["Row"];
+      };
+      sales_secure: {
+        Row: Pick<
+          Database["public"]["Tables"]["sales"]["Row"],
+          | "id"
+          | "inventory_item_id"
+          | "sold_price"
+          | "sale_date"
+          | "sale_platform"
+          | "buyer_note"
+          | "marketplace_account_id"
+          | "legacy_id"
+          | "created_by"
+          | "created_at"
+          | "updated_at"
+        >;
+      };
+      marketplace_accounts_secure: {
+        Row: Omit<Database["public"]["Tables"]["marketplace_accounts"]["Row"], "legacy_raw">;
+      };
+    };
+
     Functions: {
-      is_admin: {
-        Args: Record<string, never>;
-        Returns: boolean;
-      };
-      claim_admin_role: {
-        Args: { input_code: string };
-        Returns: boolean;
-      };
+      is_admin: { Args: Record<string, never>; Returns: boolean };
+      claim_admin_role: { Args: { input_code: string }; Returns: boolean };
     };
   };
 }

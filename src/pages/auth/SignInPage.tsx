@@ -35,8 +35,9 @@ export function SignInPage() {
   return (
     <div className="flex h-screen items-center justify-center bg-neutral-50">
       <Card className="w-full max-w-sm">
+        <div className="mb-5 flex items-center gap-3"><img src="/dripseason-office-logo.jpeg" alt="" className="h-12 w-12 rounded-full object-cover" /><span className="text-base font-bold tracking-tight text-neutral-900">Dripseason-Office</span></div>
         <h1 className="mb-1 text-xl font-bold">Sign in</h1>
-        <p className="mb-6 text-sm text-neutral-500">Welcome back to Project26.</p>
+        <p className="mb-6 text-sm text-neutral-500">Welcome back to Dripseason-Office.</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1 text-sm">

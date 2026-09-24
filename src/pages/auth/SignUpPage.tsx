@@ -62,6 +62,7 @@ export function SignUpPage() {
     return (
       <div className="flex h-screen items-center justify-center bg-neutral-50">
         <Card className="w-full max-w-sm">
+          <div className="mb-5 flex items-center gap-3"><img src="/dripseason-office-logo.jpeg" alt="" className="h-12 w-12 rounded-full object-cover" /><span className="text-base font-bold tracking-tight text-neutral-900">Dripseason-Office</span></div>
           <h1 className="mb-1 text-xl font-bold">Enter your admin code</h1>
           <p className="mb-6 text-sm text-neutral-500">
             Your account was created as a worker. Enter the admin code to upgrade it now.
@@ -100,8 +101,9 @@ export function SignUpPage() {
   return (
     <div className="flex h-screen items-center justify-center bg-neutral-50">
       <Card className="w-full max-w-sm">
+        <div className="mb-5 flex items-center gap-3"><img src="/dripseason-office-logo.jpeg" alt="" className="h-12 w-12 rounded-full object-cover" /><span className="text-base font-bold tracking-tight text-neutral-900">Dripseason-Office</span></div>
         <h1 className="mb-1 text-xl font-bold">Create an account</h1>
-        <p className="mb-6 text-sm text-neutral-500">Get started with Project26.</p>
+        <p className="mb-6 text-sm text-neutral-500">Get started with Dripseason-Office.</p>
 
         <form onSubmit={handleSignUp} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1 text-sm">

@@ -1,11 +1,65 @@
 @import "tailwindcss";
 
+:root {
+  --p26-accent: #4b5fb5;
+  --p26-accent-fg: #fff;
+  --p26-font-size: 14px;
+  --p26-radius: 8px;
+  --p26-page: #f5f6fb;
+  --p26-panel: #fff;
+  --p26-ink: #202844;
+  --p26-muted: #66718d;
+  --p26-line: #e0e4ef;
+  --p26-soft: #f0f2f8;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --p26-page: #111522;
+  --p26-panel: #191f30;
+  --p26-ink: #edf0fb;
+  --p26-muted: #a3acc3;
+  --p26-line: #30384e;
+  --p26-soft: #222a3d;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) {
+    --p26-page: #111522;
+    --p26-panel: #191f30;
+    --p26-ink: #edf0fb;
+    --p26-muted: #a3acc3;
+    --p26-line: #30384e;
+    --p26-soft: #222a3d;
+    color-scheme: dark;
+  }
+}
+
+html[data-density="compact"] .p26-page { gap: .75rem; }
+
 body {
   margin: 0;
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+  background: var(--p26-page);
+  color: var(--p26-ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: var(--p26-font-size);
+}
+
+/* Keep the existing neutral utility classes, while letting the theme setting
+   recolor every existing Project26 page and shared component consistently. */
+[class~="bg-neutral-50"] { background-color: var(--p26-page) !important; }
+[class~="bg-white"] { background-color: var(--p26-panel) !important; }
+[class~="bg-neutral-100"], [class~="bg-neutral-200"] { background-color: var(--p26-soft) !important; }
+[class~="text-neutral-950"], [class~="text-neutral-900"], [class~="text-neutral-800"] { color: var(--p26-ink) !important; }
+[class~="text-neutral-700"], [class~="text-neutral-600"], [class~="text-neutral-500"] { color: var(--p26-muted) !important; }
+[class~="text-neutral-400"], [class~="text-neutral-300"] { color: color-mix(in srgb, var(--p26-muted) 72%, transparent) !important; }
+[class~="border-neutral-100"], [class~="border-neutral-200"], [class~="border-neutral-300"] { border-color: var(--p26-line) !important; }
+[class~="hover:bg-neutral-50"]:hover, [class~="hover:bg-neutral-100"]:hover { background-color: var(--p26-soft) !important; }
+[class~="focus:border-neutral-500"]:focus { border-color: var(--p26-accent) !important; }
+[class~="bg-neutral-900"] { background-color: var(--p26-accent) !important; }
+
+input, textarea, select { color: var(--p26-ink); }
+input:not([type="checkbox"]):not([type="radio"]), textarea, select {
+  background-color: var(--p26-panel);
 }
