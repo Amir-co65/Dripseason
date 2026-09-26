@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { PageHeader, EmptyState, Badge } from "@/components/ui/Display";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -23,13 +23,15 @@ const STATUS_TONE: Record<InventoryStatus, "neutral" | "good" | "bad" | "warn"> 
 };
 
 export function InventoryPage() {
+  const [searchParams] = useSearchParams();
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
 
-  const [status, setStatus] = useState<InventoryStatus | "">("");
-  const [category, setCategory] = useState("");
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(0);
+  const [status, setStatus] = useState<InventoryStatus | "">(() => searchParams.get("status") as InventoryStatus | "" ?? "");
+  const [category, setCategory] = useState(() => searchParams.get("category") ?? "");
+  const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">(() => searchParams.get("sort") === "oldest" ? "oldest" : "newest");
+  const [page, setPage] = useState(() => Number(searchParams.get("page")) || 0);
   const [toDelete, setToDelete] = useState<InventoryRow | null>(null);
   const deleteItem = useDeleteInventoryItem();
 
@@ -39,20 +41,23 @@ export function InventoryPage() {
     search: search || undefined,
   });
   const pageSize = 60;
-  const visibleItems = (items ?? []).slice(page * pageSize, (page + 1) * pageSize);
+  const sortedItems = [...(items ?? [])].sort((a, b) => (sortOrder === "newest" ? -1 : 1) * (a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)));
+  const visibleItems = sortedItems.slice(page * pageSize, (page + 1) * pageSize);
   const { data: thumbnails } = useItemThumbnails(visibleItems.map((item) => item.id));
   const { data: categories } = useCategories();
+  const returnTo = `/inventory?${new URLSearchParams({ ...(status ? { status } : {}), ...(category ? { category } : {}), ...(search ? { search } : {}), ...(sortOrder !== "newest" ? { sort: sortOrder } : {}), ...(page ? { page: String(page) } : {}) }).toString()}`;
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Inventory"
         subtitle={`${items?.length ?? 0} items`}
-        actions={<Link to="/inventory/new" className="inline-flex items-center justify-center gap-2 rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:opacity-90">+ Add item</Link>}
+        actions={<Link to={`/inventory/new?returnTo=${encodeURIComponent(returnTo)}`} className="inline-flex items-center justify-center gap-2 rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:opacity-90">+ Add item</Link>}
       />
 
       <div className="flex flex-wrap gap-2">
         <Input placeholder="Search name or ID..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} className="max-w-xs" />
+        <Select aria-label="Sort by date" value={sortOrder} onChange={(e) => { setSortOrder(e.target.value as "newest" | "oldest"); setPage(0); }} className="max-w-[200px]"><option value="newest">Newest to oldest</option><option value="oldest">Oldest to newest</option></Select>
         <Select value={status} onChange={(e) => { setStatus(e.target.value as InventoryStatus | ""); setPage(0); }} className="max-w-[180px]">
           <option value="">All statuses</option>
           <option value="available">Available</option>
@@ -103,7 +108,7 @@ export function InventoryPage() {
                 </Td>
                 <Td right>
                   <div className="flex justify-end gap-2">
-                    <Link to={`/inventory/${it.id}/edit`} className="rounded-lg px-3 py-2 text-sm font-medium hover:bg-neutral-100">Edit</Link>
+                    <Link to={`/inventory/${it.id}/edit?returnTo=${encodeURIComponent(returnTo)}`} className="rounded-lg px-3 py-2 text-sm font-medium hover:bg-neutral-100">Edit</Link>
                     {isAdmin && (
                       <Button variant="ghost" onClick={() => setToDelete(it)}>
                         Delete

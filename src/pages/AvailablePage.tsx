@@ -1,8 +1,8 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { EmptyState, PageHeader } from "@/components/ui/Display";
-import { Field, Input, Select } from "@/components/ui/Field";
+import { Input, Select } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { TableScroll, Td, Th } from "@/components/ui/Table";
 import { useAuth } from "@/context/AuthContext";
@@ -10,7 +10,8 @@ import { useChapters, usePackages } from "@/hooks/useChapters";
 import { useInventoryItems } from "@/hooks/useInventory";
 import { useItemThumbnails } from "@/hooks/useInventory";
 import { ItemThumbnail } from "@/components/inventory/ItemThumbnail";
-import { useRecordSale } from "@/hooks/useSales";
+import { RecordItemSaleForm } from "@/pages/InventoryItemPage";
+import { ItemTextScanner } from "@/components/inventory/ItemTextScanner";
 import { formatMoney } from "@/lib/format";
 import type { Database } from "@/types/database.types";
 
@@ -25,8 +26,10 @@ export function AvailablePage() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [chapterId, setChapterId] = useState("");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [page, setPage] = useState(0);
   const [selling, setSelling] = useState<Item | null>(null);
+  const [scannedCodes, setScannedCodes] = useState<string[]>([]);
   const packageById = useMemo(() => new Map(packages.map((p) => [p.id, p])), [packages]);
   const chapterById = useMemo(() => new Map(chapters.map((c) => [c.id, c])), [chapters]);
   const eligibleItems = items.filter((item) => {
@@ -38,8 +41,10 @@ export function AvailablePage() {
     if (category && item.category !== category) return false;
     if (chapterId && pack?.chapter_id !== chapterId) return false;
     const needle = query.trim().toLocaleLowerCase();
-    return !needle || item.item_name.toLocaleLowerCase().includes(needle) || (item.legacy_public_id ?? "").toLocaleLowerCase().includes(needle);
-  });
+    const matchesSearch = !needle || item.item_name.toLocaleLowerCase().includes(needle) || (item.legacy_public_id ?? "").toLocaleLowerCase().includes(needle);
+    const matchesScan = !scannedCodes.length || scannedCodes.some((code) => [item.legacy_public_id, item.sku].some((value) => value?.toUpperCase() === code));
+    return matchesSearch && matchesScan;
+  }).sort((a, b) => (sortOrder === "newest" ? -1 : 1) * (a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)));
   const categories = [...new Set(eligibleItems.map((item) => item.category).filter((value): value is string => Boolean(value)))].sort();
   const askingValue = rows.reduce((sum, item) => sum + Number(item.asking_price || 0), 0);
   const pageSize = 60;
@@ -50,10 +55,14 @@ export function AvailablePage() {
     <PageHeader title="Available stuff" subtitle={isAdmin ? `${rows.length} items ready to sell · asking value ${formatMoney(askingValue)}` : `${rows.length} items ready to sell`} />
     <div className="flex flex-wrap gap-2">
       <Input type="search" placeholder="Search name or ID…" value={query} onChange={(e) => { setQuery(e.target.value); setPage(0); }} className="max-w-xs" />
+      <ItemTextScanner onDone={(codes) => { setScannedCodes(codes); setPage(0); }} />
+      {scannedCodes.length > 0 && <Button type="button" variant="ghost" onClick={() => setScannedCodes([])}>Clear scanned items · {scannedCodes.length}</Button>}
       <Select value={category} onChange={(e) => { setCategory(e.target.value); setPage(0); }} className="max-w-[200px]"><option value="">All categories</option>{categories.map((name) => <option key={name}>{name}</option>)}</Select>
       <Select value={chapterId} onChange={(e) => { setChapterId(e.target.value); setPage(0); }} className="max-w-[220px]"><option value="">All chapters</option>{chapters.map((chapter) => <option key={chapter.id} value={chapter.id}>{chapter.name}</option>)}</Select>
+      <Select aria-label="Sort by date" value={sortOrder} onChange={(e) => { setSortOrder(e.target.value as "newest" | "oldest"); setPage(0); }} className="max-w-[200px]"><option value="newest">Newest to oldest</option><option value="oldest">Oldest to newest</option></Select>
     </div>
-    {isLoading ? <p className="text-sm text-neutral-400">Loading…</p> : rows.length === 0 ? <EmptyState title="Nothing available" /> : <TableScroll><thead><tr><Th>Item</Th><Th>Category</Th><Th>Package</Th>{isAdmin && <Th right>Bought</Th>}{isAdmin && <Th right>Asking</Th>}<Th></Th></tr></thead><tbody>
+    {scannedCodes.length > 0 && <p className="text-sm text-neutral-500">Showing {rows.length} matching item{rows.length === 1 ? "" : "s"} for scanned codes: {scannedCodes.join(", ")}</p>}
+    {isLoading ? <p className="text-sm text-neutral-400">Loading…</p> : rows.length === 0 ? <EmptyState title={scannedCodes.length ? "No available items match the scanned codes" : "Nothing available"} /> : <TableScroll><thead><tr><Th>Item</Th><Th>Category</Th><Th>Package</Th>{isAdmin && <Th right>Bought</Th>}{isAdmin && <Th right>Asking</Th>}<Th></Th></tr></thead><tbody>
       {visibleRows.map((item) => {
         const pack = item.package_id ? packageById.get(item.package_id) : null;
         const chapter = pack ? chapterById.get(pack.chapter_id) : null;
@@ -71,25 +80,5 @@ export function AvailablePage() {
 }
 
 function RecordAvailableSale({ item, onClose }: { item: Item; onClose: () => void }) {
-  const save = useRecordSale();
-  const [price, setPrice] = useState(String(item.asking_price));
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [platform, setPlatform] = useState("Vinted");
-  const [buyerNote, setBuyerNote] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  async function submit(e: FormEvent) {
-    e.preventDefault(); setError(null);
-    try {
-      await save.mutateAsync({ inventory_item_id: item.id, sold_price: Number(price) || 0, sale_date: date, sale_platform: platform, buyer_note: buyerNote || null });
-      onClose();
-    } catch (err) { setError(err instanceof Error ? err.message : "Could not record sale."); }
-  }
-  return <Modal open onClose={onClose} title={`Sell · ${item.item_name}`}><form onSubmit={submit} className="flex flex-col gap-4">
-    <Field label="Sold for"><Input type="number" min="0" step="0.01" required value={price} onChange={(e) => setPrice(e.target.value)} /></Field>
-    <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-    <Field label="Sold on"><Select value={platform} onChange={(e) => setPlatform(e.target.value)}><option>Vinted</option><option>Plick</option><option>Cash</option><option>Other</option><option>Gift</option></Select></Field>
-    <Field label="Buyer note"><Input value={buyerNote} onChange={(e) => setBuyerNote(e.target.value)} /></Field>
-    {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-    <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" disabled={save.isPending}>{save.isPending ? "Saving…" : "Mark as sold"}</Button></div>
-  </form></Modal>;
+  return <Modal open onClose={onClose} title={`Sell · ${item.item_name}`}><RecordItemSaleForm item={item} onSaved={onClose} /></Modal>;
 }

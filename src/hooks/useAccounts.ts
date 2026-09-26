@@ -44,6 +44,10 @@ export function usePostingAccounts(platform?: Platform) {
   });
 }
 
+export function useAccountOwners() {
+  return useQuery({ queryKey: ["accountOwners"], queryFn: accountsApi.listAccountOwners });
+}
+
 export function useCreatePostingAccount() {
   const qc = useQueryClient();
   return useMutation({

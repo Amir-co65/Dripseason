@@ -27,12 +27,17 @@ export function useUpdateChapter() {
 export function useDeleteChapter() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: chaptersApi.deleteChapter,
+    mutationFn: ({ id, movePackagesTo }: { id: string; movePackagesTo?: string | null }) => chaptersApi.deleteChapter(id, movePackagesTo),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["chapters"] });
       qc.invalidateQueries({ queryKey: ["packages"] });
     },
   });
+}
+
+export function useEnsureMonthlyChapter() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: chaptersApi.ensureCurrentMonthlyChapter, onSuccess: () => qc.invalidateQueries({ queryKey: ["chapters"] }) });
 }
 
 export function usePackages(chapterId?: string) {

@@ -18,13 +18,13 @@ export async function listMarketplaceAccounts(platform?: Platform) {
 /** Admin-only at the RLS layer - a worker calling these gets a permission
  * error from Postgres itself, not just a hidden button in the UI. */
 export async function createMarketplaceAccount(input: AccountInsert) {
-  const { data, error } = await supabase.from("marketplace_accounts").insert(input).select().single();
+  const { data, error } = await supabase.from("marketplace_accounts").insert(input).select("id, platform, label, posting_account_number, balance, banned, created_by, account_owner_id, created_at, updated_at").single();
   if (error) throw error;
   return data;
 }
 
 export async function updateMarketplaceAccount(id: string, input: AccountUpdate) {
-  const { data, error } = await supabase.from("marketplace_accounts").update(input).eq("id", id).select().single();
+  const { data, error } = await supabase.from("marketplace_accounts").update(input).eq("id", id).select("id, platform, label, posting_account_number, balance, banned, created_by, account_owner_id, created_at, updated_at").single();
   if (error) throw error;
   return data;
 }
@@ -57,4 +57,10 @@ export async function updatePostingAccount(id: string, input: Database["public"]
 export async function deletePostingAccount(id: string) {
   const { error } = await supabase.from("posting_accounts").delete().eq("id", id);
   if (error) throw error;
+}
+
+export async function listAccountOwners() {
+  const { data, error } = await supabase.rpc("account_owners");
+  if (error) throw error;
+  return data ?? [];
 }

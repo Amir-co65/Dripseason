@@ -30,3 +30,8 @@ export function useDeleteTrade() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["trades"] }),
   });
 }
+
+export function useReturnSale() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: ({ saleId, receivedName, date }: { saleId: string; receivedName: string; date: string }) => tradesApi.returnSale(saleId, receivedName, date), onSuccess: () => { qc.invalidateQueries({ queryKey: ["trades"] }); qc.invalidateQueries({ queryKey: ["sales"] }); qc.invalidateQueries({ queryKey: ["inventoryItems"] }); qc.invalidateQueries({ queryKey: ["wallet"] }); } });
+}

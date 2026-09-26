@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader, EmptyState } from "@/components/ui/Display";
 import { Button } from "@/components/ui/Button";
@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { TableScroll, Th, Td } from "@/components/ui/Table";
 import { formatMoney } from "@/lib/format";
-import { useChapters, useCreateChapter, usePackages, useCreatePackage, useDeletePackage, useUpdatePackage } from "@/hooks/useChapters";
+import { useChapters, useCreateChapter, useDeleteChapter, useEnsureMonthlyChapter, usePackages, useCreatePackage, useDeletePackage, useUpdateChapter, useUpdatePackage } from "@/hooks/useChapters";
 import { useAuth } from "@/context/AuthContext";
 import { useInventoryItems } from "@/hooks/useInventory";
 import type { Database } from "@/types/database.types";
@@ -19,6 +19,8 @@ export function HaulsPage() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
   const { data: chapters, isLoading } = useChapters();
+  const ensureMonth = useEnsureMonthlyChapter();
+  useEffect(() => { if (isAdmin) void ensureMonth.mutateAsync().catch(() => undefined); }, [isAdmin]);
   const { data: inventory } = useInventoryItems();
   const { data: allPackages = [] } = usePackages();
   const itemCounts = new Map<string, number>();
@@ -26,6 +28,7 @@ export function HaulsPage() {
   const [openChapter, setOpenChapter] = useState<string | null>(null);
   const [addingChapter, setAddingChapter] = useState(false);
   const [search, setSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const packageById = new Map(allPackages.map((item) => [item.id, item]));
   const chapterById = new Map((chapters ?? []).map((item) => [item.id, item]));
   const needle = search.trim().toLocaleLowerCase();
@@ -34,7 +37,7 @@ export function HaulsPage() {
     return item.item_name.toLocaleLowerCase().includes(needle)
       || (item.legacy_public_id ?? "").toLocaleLowerCase().includes(needle)
       || (pack?.title ?? "").toLocaleLowerCase().includes(needle);
-  }).slice(0, 200) : [];
+  }).sort((a, b) => (sortOrder === "newest" ? -1 : 1) * (a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))).slice(0, 200) : [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -44,7 +47,7 @@ export function HaulsPage() {
         actions={isAdmin ? <Button onClick={() => setAddingChapter(true)}>+ Chapter</Button> : undefined}
       />
 
-      <Input type="search" placeholder="Search items, IDs, packages…" value={search} onChange={(event) => setSearch(event.target.value)} />
+      <div className="flex flex-wrap gap-2"><Input type="search" placeholder="Search items, IDs, packages…" value={search} onChange={(event) => setSearch(event.target.value)} className="max-w-xs" /><Select aria-label="Sort by date" value={sortOrder} onChange={(event) => setSortOrder(event.target.value as "newest" | "oldest")} className="max-w-[200px]"><option value="newest">Newest to oldest</option><option value="oldest">Oldest to newest</option></Select></div>
 
       {needle ? (
         !matchingItems.length ? <EmptyState title="No matches" /> : <TableScroll><thead><tr><Th>Item</Th><Th>Package</Th>{isAdmin && <Th right>Bought</Th>}{isAdmin && <Th right>Sell for</Th>}{isAdmin && <Th right>Sold for</Th>}<Th>Status</Th></tr></thead><tbody>
@@ -57,7 +60,7 @@ export function HaulsPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {chapters.map((c) => (
-            <ChapterRow key={c.id} chapter={c} open={openChapter === c.id} onToggle={() => setOpenChapter(openChapter === c.id ? null : c.id)} isAdmin={isAdmin} itemCounts={itemCounts} />
+            <ChapterRow key={c.id} chapter={c} chapters={chapters ?? []} open={openChapter === c.id} onToggle={() => setOpenChapter(openChapter === c.id ? null : c.id)} isAdmin={isAdmin} itemCounts={itemCounts} />
           ))}
         </div>
       )}
@@ -67,12 +70,15 @@ export function HaulsPage() {
   );
 }
 
-function ChapterRow({ chapter, open, onToggle, isAdmin, itemCounts }: { chapter: Chapter; open: boolean; onToggle: () => void; isAdmin: boolean; itemCounts: Map<string, number> }) {
+function ChapterRow({ chapter, chapters, open, onToggle, isAdmin, itemCounts }: { chapter: Chapter; chapters: Chapter[]; open: boolean; onToggle: () => void; isAdmin: boolean; itemCounts: Map<string, number> }) {
   const { data: packages } = usePackages(open ? chapter.id : undefined);
   const [addingPackage, setAddingPackage] = useState(false);
   const [editingPackage, setEditingPackage] = useState<Package | null>(null);
   const [deletingPackage, setDeletingPackage] = useState<string | null>(null);
   const deletePackage = useDeletePackage();
+  const deleteChapter = useDeleteChapter();
+  const [editingChapter, setEditingChapter] = useState(false);
+  const [deletingChapter, setDeletingChapter] = useState(false);
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white">
@@ -80,6 +86,7 @@ function ChapterRow({ chapter, open, onToggle, isAdmin, itemCounts }: { chapter:
         <span className="font-semibold">{chapter.name}</span>
         {chapter.date_range && <span className="text-sm text-neutral-400">{chapter.date_range}</span>}
       </button>
+      {isAdmin && <div className="flex justify-end gap-1 px-3 pb-2"><Button variant="ghost" onClick={() => setEditingChapter(true)}>Edit</Button><Button variant="ghost" onClick={() => setDeletingChapter(true)}>Delete</Button></div>}
 
       {open && (
         <div className="border-t border-neutral-100 p-3">
@@ -129,21 +136,26 @@ function ChapterRow({ chapter, open, onToggle, isAdmin, itemCounts }: { chapter:
       {addingPackage && <PackageFormModal chapterId={chapter.id} onClose={() => setAddingPackage(false)} />}
       {editingPackage && <PackageFormModal chapterId={chapter.id} packageItem={editingPackage} onClose={() => setEditingPackage(null)} />}
       {deletingPackage && <ConfirmDialog open title="Delete package" message="Delete this package? Its inventory items will stay in inventory without a package link." confirmLabel="Delete" danger onCancel={() => setDeletingPackage(null)} onConfirm={async () => { await deletePackage.mutateAsync(deletingPackage); setDeletingPackage(null); }} />}
+      {editingChapter && <ChapterFormModal chapter={chapter} onClose={() => setEditingChapter(false)} />}
+      {deletingChapter && <DeleteChapterModal chapter={chapter} chapters={chapters} onClose={() => setDeletingChapter(false)} onDelete={(movePackagesTo) => deleteChapter.mutateAsync({ id: chapter.id, movePackagesTo })} />}
     </div>
   );
 }
 
-function ChapterFormModal({ onClose }: { onClose: () => void }) {
+function ChapterFormModal({ chapter, onClose }: { chapter?: Chapter; onClose: () => void }) {
   const create = useCreateChapter();
-  const [name, setName] = useState("");
-  const [dateRange, setDateRange] = useState("");
+  const update = useUpdateChapter();
+  const [name, setName] = useState(chapter?.name ?? "");
+  const [dateRange, setDateRange] = useState(chapter?.date_range ?? "");
+  const [periodStart, setPeriodStart] = useState(chapter?.period_start ?? "");
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     try {
-      await create.mutateAsync({ name, date_range: dateRange || null });
+      if (chapter) await update.mutateAsync({ id: chapter.id, input: { name, date_range: dateRange || null, period_start: periodStart || null } });
+      else await create.mutateAsync({ name, date_range: dateRange || null, period_start: periodStart || null });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -151,7 +163,7 @@ function ChapterFormModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal open onClose={onClose} title="New chapter">
+    <Modal open onClose={onClose} title={chapter ? "Edit chapter" : "New chapter"}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Field label="Name">
           <Input required value={name} onChange={(e) => setName(e.target.value)} />
@@ -159,18 +171,26 @@ function ChapterFormModal({ onClose }: { onClose: () => void }) {
         <Field label="Date range">
           <Input value={dateRange} onChange={(e) => setDateRange(e.target.value)} placeholder="e.g. 21.1" />
         </Field>
+        <Field label="Chapter period starts"><Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} /></Field>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={create.isPending}>
-            {create.isPending ? "Creating..." : "Create"}
+          <Button type="submit" disabled={create.isPending || update.isPending}>
+            {create.isPending || update.isPending ? "Saving..." : chapter ? "Save" : "Create"}
           </Button>
         </div>
       </form>
     </Modal>
   );
+}
+
+function DeleteChapterModal({ chapter, chapters, onClose, onDelete }: { chapter: Chapter; chapters: Chapter[]; onClose: () => void; onDelete: (target: string | null) => Promise<unknown> }) {
+  const { data: packages = [] } = usePackages(chapter.id);
+  const [target, setTarget] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  return <Modal open onClose={onClose} title="Delete chapter"><div className="flex flex-col gap-4"><p className="text-sm text-neutral-600">Packages are never deleted with a chapter. {packages.length ? "Move them to another chapter before confirming." : "This chapter has no packages."}</p>{packages.length > 0 && <Field label="Move packages to"><Select required value={target} onChange={(e) => setTarget(e.target.value)}><option value="">Choose a chapter…</option>{chapters.filter((c) => c.id !== chapter.id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>}{error && <p className="text-sm text-red-600">{error}</p>}<div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button variant="danger" disabled={packages.length > 0 && !target} onClick={async () => { try { await onDelete(target || null); onClose(); } catch (e) { setError(e instanceof Error ? e.message : "Could not delete chapter."); } }}>Delete chapter</Button></div></div></Modal>;
 }
 
 function PackageFormModal({ chapterId, packageItem, onClose }: { chapterId: string; packageItem?: Package; onClose: () => void }) {

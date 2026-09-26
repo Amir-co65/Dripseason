@@ -88,7 +88,9 @@ export async function updateInventoryItem(id: string, input: ItemUpdate) {
 }
 
 export async function deleteInventoryItem(id: string) {
-  const { error } = await supabase.from("inventory_items").delete().eq("id", id);
+  // Archive instead of hard deleting: it disappears from all stock searches
+  // and can be restored by Undo without losing photos, sales, or placement.
+  const { error } = await supabase.from("inventory_items").update({ deleted_at: new Date().toISOString() }).eq("id", id);
   if (error) throw error;
 }
 

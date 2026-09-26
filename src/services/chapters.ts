@@ -25,7 +25,13 @@ export async function updateChapter(id: string, input: ChapterUpdate) {
   return data;
 }
 
-export async function deleteChapter(id: string) {
-  const { error } = await supabase.from("chapters").delete().eq("id", id);
+export async function deleteChapter(id: string, movePackagesTo?: string | null) {
+  const { error } = await supabase.rpc("delete_chapter_safely", { p_chapter_id: id, p_move_packages_to: movePackagesTo ?? null });
   if (error) throw error;
+}
+
+export async function ensureCurrentMonthlyChapter() {
+  const { data, error } = await supabase.rpc("ensure_monthly_chapter", {});
+  if (error) throw error;
+  return data;
 }

@@ -13,6 +13,9 @@ export function useRecordSale() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["inventoryItems"] });
+      qc.invalidateQueries({ queryKey: ["marketplaceAccounts"] });
+      qc.invalidateQueries({ queryKey: ["walletBalances"] });
+      qc.invalidateQueries({ queryKey: ["walletTransactions"] });
     },
   });
 }
@@ -25,6 +28,9 @@ export function useUpdateSale() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["inventoryItems"] });
+      qc.invalidateQueries({ queryKey: ["marketplaceAccounts"] });
+      qc.invalidateQueries({ queryKey: ["walletBalances"] });
+      qc.invalidateQueries({ queryKey: ["walletTransactions"] });
     },
   });
 }
@@ -36,6 +42,9 @@ export function useDeleteSale() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["inventoryItems"] });
+      qc.invalidateQueries({ queryKey: ["marketplaceAccounts"] });
+      qc.invalidateQueries({ queryKey: ["walletBalances"] });
+      qc.invalidateQueries({ queryKey: ["walletTransactions"] });
     },
   });
 }

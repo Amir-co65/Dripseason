@@ -10,8 +10,9 @@ export type NotificationType = "info" | "success" | "warning" | "error";
 export type InventoryStatus = "available" | "listed" | "sold" | "traded" | "archived";
 export type ArrivalStatus = "arrived" | "arriving";
 export type MediaKind = "photo" | "link";
-export type Platform = "vinted" | "plick";
-export type WalletBucket = "cash" | "vinted" | "plick";
+/** Platform slugs are database-managed; do not turn this back into a union. */
+export type Platform = string;
+export type WalletBucket = string;
 export type PostingStatus = "needs_posting" | "skipped" | "posted";
 export type TradeKind = "standard-trade" | "return-exchange";
 
@@ -88,6 +89,7 @@ export interface Database {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          period_start: string | null;
         };
         Insert: {
           id?: string;
@@ -97,8 +99,9 @@ export interface Database {
           legacy_id?: string | null;
           legacy_raw?: Record<string, unknown> | null;
           created_by?: string | null;
+          period_start?: string | null;
         };
-        Update: Partial<{ name: string; date_range: string | null; chapter_number: number | null }>;
+        Update: Partial<{ name: string; date_range: string | null; chapter_number: number | null; period_start: string | null }>;
         Relationships: [];
       };
 
@@ -171,6 +174,7 @@ export interface Database {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          deleted_at: string | null;
         };
         Insert: {
           id?: string;
@@ -216,6 +220,7 @@ export interface Database {
           vinted_posting_account_id: string | null;
           plick_posting_status: PostingStatus;
           plick_posting_account_id: string | null;
+          deleted_at: string | null;
         }>;
         Relationships: [];
       };
@@ -309,6 +314,7 @@ export interface Database {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          account_owner_id: string | null;
         };
         Insert: {
           id?: string;
@@ -325,6 +331,7 @@ export interface Database {
           legacy_id?: string | null;
           legacy_raw?: Record<string, unknown> | null;
           created_by?: string | null;
+          account_owner_id?: string | null;
         };
         Update: Partial<{
           label: string;
@@ -454,6 +461,18 @@ export interface Database {
         Update: Partial<{ notes: string | null; sold_item_ids: string[]; active_item_id: string | null }>;
         Relationships: [];
       };
+      platforms: {
+        Row: { slug: string; name: string; is_active: boolean; created_at: string };
+        Insert: { slug: string; name: string; is_active?: boolean };
+        Update: Partial<{ name: string; is_active: boolean }>;
+        Relationships: [];
+      };
+      item_postings: {
+        Row: { id: string; inventory_item_id: string; platform_slug: string; status: PostingStatus; posting_account_id: string | null; created_at: string; updated_at: string };
+        Insert: { id?: string; inventory_item_id: string; platform_slug: string; status?: PostingStatus; posting_account_id?: string | null };
+        Update: Partial<{ status: PostingStatus; posting_account_id: string | null }>;
+        Relationships: [];
+      };
     };
 
     Views: {
@@ -487,6 +506,11 @@ export interface Database {
     Functions: {
       is_admin: { Args: Record<string, never>; Returns: boolean };
       claim_admin_role: { Args: { input_code: string }; Returns: boolean };
+      ensure_monthly_chapter: { Args: { p_now?: string }; Returns: Database["public"]["Tables"]["chapters"]["Row"] };
+      delete_chapter_safely: { Args: { p_chapter_id: string; p_move_packages_to?: string | null }; Returns: undefined };
+      return_sale: { Args: { p_sale_id: string; p_received_name: string; p_date?: string }; Returns: string };
+      undo_latest_action: { Args: Record<string, never>; Returns: string };
+      account_owners: { Args: Record<string, never>; Returns: { id: string; full_name: string }[] };
     };
   };
 }

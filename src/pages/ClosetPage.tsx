@@ -15,16 +15,25 @@ import {
 } from "@/hooks/useCloset";
 import { useInventoryItems } from "@/hooks/useInventory";
 import { useAuth } from "@/context/AuthContext";
+import { useItemThumbnails } from "@/hooks/useInventory";
+import { ItemThumbnail } from "@/components/inventory/ItemThumbnail";
+import { CodeScannerButton } from "@/components/inventory/CodeScannerButton";
 
 export function ClosetPage() {
   const { data: sections, isLoading } = useClosetSections();
   const { profile } = useAuth();
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const { data: allItems = [] } = useInventoryItems();
+  const matches = allItems.filter((item) => { const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean); return terms.length > 0 && terms.some((term) => [item.item_name,item.sku,item.legacy_public_id,item.brand].some((value) => value?.toLowerCase().includes(term))); }).slice(0,100);
+  const { data: thumbnails } = useItemThumbnails(matches.map((item) => item.id));
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Closet" subtitle={`${sections?.length ?? 0} storage spots`} actions={<Button onClick={() => setAdding(true)}>+ Section</Button>} />
+      <div className="flex gap-2"><Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find by name, SKU, public ID or brand…" className="max-w-md" /><CodeScannerButton onDetected={(codes) => setSearch(codes.join(" "))} /></div>
+      {search.trim() && <div className="rounded-xl border border-neutral-200 bg-white">{matches.length ? matches.map((item) => <div key={item.id} className="flex items-center gap-3 border-b border-neutral-100 p-3 last:border-0"><ItemThumbnail src={thumbnails?.get(item.id)} name={item.item_name}/><div className="min-w-0"><div className="font-medium">{item.item_name}</div><div className="text-sm text-neutral-500">{[item.legacy_public_id,item.sku,item.brand].filter(Boolean).join(" · ")}</div></div><div className="ml-auto text-right text-sm"><div className="text-neutral-500">Location</div><div className="font-medium">{item.closet_location ?? "Not placed"}</div></div></div>) : <p className="p-3 text-sm text-neutral-500">No matching product.</p>}</div>}
 
       {isLoading ? (
         <p className="text-sm text-neutral-400">Loading...</p>

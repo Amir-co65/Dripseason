@@ -7,10 +7,12 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { useAddWalletTransaction, useWalletBalances } from "@/hooks/useWallet";
 import { useMarketplaceAccounts } from "@/hooks/useAccounts";
 import type { WalletBucket } from "@/types/database.types";
+import { usePlatforms } from "@/hooks/usePlatforms";
 
 export function WalletPage() {
   const { data: balances } = useWalletBalances();
   const { data: accounts } = useMarketplaceAccounts();
+  const { data: platforms = [] } = usePlatforms();
   const [adjusting, setAdjusting] = useState<{ bucket: WalletBucket; direction: "add" | "take" } | null>(null);
   const [settingBucket, setSettingBucket] = useState<WalletBucket | null>(null);
 
@@ -23,7 +25,7 @@ export function WalletPage() {
       <PageHeader title="Wallet" subtitle={`Total ${formatMoney(total)} · updated ${formatDate(updatedAt)}`} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {(["cash", "vinted", "plick"] as const).map((bucket) => {
+        {["cash", ...platforms.map((platform) => platform.slug)].map((bucket) => {
           const balance = balanceByBucket.get(bucket)?.balance ?? 0;
           return <div key={bucket} className="rounded-xl border border-neutral-200 bg-white p-4">
             <div className="text-xs capitalize text-neutral-500">{bucket}</div>
@@ -40,7 +42,8 @@ export function WalletPage() {
       <div className="rounded-xl border border-neutral-200 bg-white p-4">
         <h2 className="text-sm font-semibold text-neutral-700">Balances held in marketplace accounts</h2>
         <div className="mt-2 divide-y divide-neutral-100 text-sm">
-          {(["vinted", "plick"] as const).map((platform) => {
+          {platforms.map((platformRow) => {
+            const platform = platformRow.slug;
             const platformAccounts = (accounts ?? []).filter((account) => account.platform === platform);
             const held = platformAccounts.reduce((sum, account) => sum + (account.balance ?? 0), 0);
             return <div key={platform} className="flex justify-between py-2"><span className="capitalize">{platform} <span className="text-neutral-400">· {platformAccounts.length} accounts</span></span><span className="font-medium">{formatMoney(held)}</span></div>;

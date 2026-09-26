@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useMarketplaceAccounts, usePostingAccounts } from "@/hooks/useAccounts";
+import { useItemPostings, usePlatforms } from "@/hooks/usePlatforms";
 import { PhotoGallery } from "@/components/inventory/PhotoGallery";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -63,23 +65,30 @@ function Detail({ label, value }: { label: string; value: string | null }) {
   return <div><dt className="text-neutral-500">{label}</dt><dd className="mt-0.5 font-medium">{value || "—"}</dd></div>;
 }
 
-export function RecordItemSaleForm({ item }: { item: Item }) {
+export function RecordItemSaleForm({ item, onSaved }: { item: Item; onSaved?: () => void }) {
   const record = useRecordSale();
+  const { data: platforms = [] } = usePlatforms();
+  const { data: accounts = [] } = useMarketplaceAccounts();
+  const { data: postingAccounts = [] } = usePostingAccounts();
+  const { data: postings = [] } = useItemPostings([item.id]);
   const [price, setPrice] = useState(String(item.asking_price));
-  const [platform, setPlatform] = useState("Vinted");
+  const [platform, setPlatform] = useState("vinted");
+  const [accountId, setAccountId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [buyerNote, setBuyerNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   async function submit(e: FormEvent) {
     e.preventDefault(); setError(null);
     try {
-      await record.mutateAsync({ inventory_item_id: item.id, sold_price: Number(price) || 0, sale_platform: platform, sale_date: date, buyer_note: buyerNote || null });
+      await record.mutateAsync({ inventory_item_id: item.id, sold_price: Number(price) || 0, sale_platform: platform, marketplace_account_id: accountId || null, sale_date: date, buyer_note: buyerNote || null });
+      onSaved?.();
     } catch (err) { setError(err instanceof Error ? err.message : "Could not record the sale."); }
   }
   return <form onSubmit={submit} className="flex flex-col gap-4">
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <Field label="Sold for"><Input required min="0" type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} /></Field>
-      <Field label="Platform"><Select value={platform} onChange={(e) => setPlatform(e.target.value)}><option>Vinted</option><option>Plick</option><option>Cash</option><option>Other</option><option>Gift</option></Select></Field>
+      <Field label="Platform"><Select value={platform} onChange={(e) => { const next = e.target.value; setPlatform(next); const posting = postings.find((row) => row.platform_slug === next && row.status === "posted"); const linked = posting && postingAccounts.find((row) => row.id === posting.posting_account_id); setAccountId(linked?.marketplace_account_id ?? ""); }}>{platforms.map((p) => <option key={p.slug} value={p.slug}>{p.name}</option>)}<option value="cash">Cash</option><option value="other">Other</option></Select></Field>
+      <Field label="Account"><Select value={accountId} onChange={(e) => setAccountId(e.target.value)}><option value="">- (not posted / no account)</option>{accounts.filter((account) => account.platform === platform).map((account) => <option key={account.id} value={account.id}>{account.label}</option>)}</Select></Field>
       <Field label="Sale date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
     </div>
     <Field label="Buyer note"><Textarea rows={2} value={buyerNote} onChange={(e) => setBuyerNote(e.target.value)} /></Field>

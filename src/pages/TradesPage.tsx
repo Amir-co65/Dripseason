@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { formatDate } from "@/lib/format";
-import { useCreateTrade, useDeleteTrade, useTrades } from "@/hooks/useTrades";
+import { useCreateTrade, useDeleteTrade, useReturnSale, useTrades } from "@/hooks/useTrades";
 import { useInventoryItems } from "@/hooks/useInventory";
+import { useSales } from "@/hooks/useSales";
 import { useAuth } from "@/context/AuthContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { TradeKind } from "@/types/database.types";
@@ -65,13 +66,20 @@ function TradeFormModal({ onClose }: { onClose: () => void }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const { data: sales = [] } = useSales();
+  const returnSale = useReturnSale();
+  const [saleId, setSaleId] = useState("");
+  const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     try {
-      await create.mutateAsync({ received_name: receivedName, kind, trade_date: date, notes: notes || null, selected_item_ids: selectedItemIds, active_item_id: selectedItemIds[0] ?? null });
+      if (kind === "return-exchange") {
+        if (!saleId) throw new Error("Choose the sold item being returned.");
+        await returnSale.mutateAsync({ saleId, receivedName, date });
+      } else await create.mutateAsync({ received_name: receivedName, kind, trade_date: date, notes: notes || null, selected_item_ids: selectedItemIds, active_item_id: selectedItemIds[0] ?? null });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -93,15 +101,16 @@ function TradeFormModal({ onClose }: { onClose: () => void }) {
         <Field label="Date">
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
-        <Field label="Items involved">
+        {kind === "return-exchange" ? <Field label="Sold item being returned"><Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, ID or SKU…" /><div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-neutral-200">{sales.filter((sale: any) => { const q = search.toLowerCase(); const item = sale.inventory_item; return !q || [item?.item_name,item?.legacy_public_id,item?.sku].some((v) => v?.toLowerCase().includes(q)); }).slice(0,80).map((sale: any) => <label key={sale.id} className="flex cursor-pointer gap-2 border-b border-neutral-100 p-2 text-sm"><input type="radio" name="returned-sale" checked={saleId === sale.id} onChange={() => setSaleId(sale.id)} /><span>{sale.inventory_item?.item_name} <span className="text-neutral-400">{sale.inventory_item?.legacy_public_id}</span></span></label>)}</div></Field> : <Field label="Items involved">
           <div className="max-h-48 overflow-y-auto rounded-lg border border-neutral-200 p-2">
-            {(inventory ?? []).map((item) => <label key={item.id} className="flex cursor-pointer items-center gap-2 border-b border-neutral-100 py-2 text-sm last:border-0">
+            {(inventory ?? []).filter((item) => { const q = search.toLowerCase(); return !q || [item.item_name,item.legacy_public_id,item.sku,item.brand].some((v) => v?.toLowerCase().includes(q)); }).map((item) => <label key={item.id} className="flex cursor-pointer items-center gap-2 border-b border-neutral-100 py-2 text-sm last:border-0">
               <input type="checkbox" checked={selectedItemIds.includes(item.id)} onChange={(e) => setSelectedItemIds(e.target.checked ? [...selectedItemIds, item.id] : selectedItemIds.filter((id) => id !== item.id))} />
               <span>{item.legacy_public_id ? `${item.legacy_public_id} · ` : ""}{item.item_name}</span>
             </label>)}
             {inventory?.length === 0 && <span className="text-sm text-neutral-400">No inventory items yet.</span>}
           </div>
-        </Field>
+        </Field>}
+        {kind === "standard-trade" && <Field label="Search items"><Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, ID, SKU or brand…" /></Field>}
         <Field label="Notes">
           <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
@@ -110,8 +119,8 @@ function TradeFormModal({ onClose }: { onClose: () => void }) {
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={create.isPending}>
-            {create.isPending ? "Saving..." : "Save"}
+          <Button type="submit" disabled={create.isPending || returnSale.isPending}>
+            {create.isPending || returnSale.isPending ? "Saving..." : "Save"}
           </Button>
         </div>
       </form>

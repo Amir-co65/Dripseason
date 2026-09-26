@@ -26,3 +26,9 @@ export async function deleteTrade(id: string) {
   const { error } = await supabase.from("trades").delete().eq("id", id);
   if (error) throw error;
 }
+
+export async function returnSale(saleId: string, receivedName: string, date: string) {
+  const { data, error } = await supabase.rpc("return_sale", { p_sale_id: saleId, p_received_name: receivedName, p_date: date });
+  if (error) throw error;
+  return data;
+}

@@ -42,6 +42,8 @@ export async function listItemsInSection(sectionId: string) {
  * inventory_item_id) - assigning it to a new section requires removing
  * any previous placement first. */
 export async function assignItemToSection(sectionId: string, inventoryItemId: string) {
+  const { data: section, error: sectionError } = await supabase.from("closet_sections").select("name").eq("id", sectionId).single();
+  if (sectionError) throw sectionError;
   await supabase.from("closet_items").delete().eq("inventory_item_id", inventoryItemId);
   const { data, error } = await supabase
     .from("closet_items")
@@ -49,10 +51,16 @@ export async function assignItemToSection(sectionId: string, inventoryItemId: st
     .select()
     .single();
   if (error) throw error;
+  const { error: locationError } = await supabase.from("inventory_items").update({ closet_location: section.name }).eq("id", inventoryItemId);
+  if (locationError) throw locationError;
   return data;
 }
 
 export async function removeItemFromSection(closetItemId: string) {
+  const { data: row, error: rowError } = await supabase.from("closet_items").select("inventory_item_id").eq("id", closetItemId).single();
+  if (rowError) throw rowError;
   const { error } = await supabase.from("closet_items").delete().eq("id", closetItemId);
   if (error) throw error;
+  const { error: locationError } = await supabase.from("inventory_items").update({ closet_location: null }).eq("id", row.inventory_item_id);
+  if (locationError) throw locationError;
 }

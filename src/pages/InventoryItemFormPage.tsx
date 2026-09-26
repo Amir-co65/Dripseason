@@ -14,6 +14,7 @@ export function InventoryItemFormPage() {
   const { itemId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
   const editing = Boolean(itemId);
@@ -60,7 +61,7 @@ export function InventoryItemFormPage() {
       const saved = editing && itemId
         ? await update.mutateAsync({ id: itemId, input: payload })
         : await create.mutateAsync(payload as Database["public"]["Tables"]["inventory_items"]["Insert"]);
-      navigate(`/inventory/${saved.id}`, { replace: true });
+      navigate(returnTo || `/inventory/${saved.id}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save this item.");
     }
@@ -88,7 +89,7 @@ export function InventoryItemFormPage() {
       {editing && itemId && <PhotoGallery inventoryItemId={itemId} />}
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
       <div className="flex justify-end gap-2 border-t border-neutral-100 pt-4">
-        <Button type="button" variant="secondary" onClick={() => navigate(editing && itemId ? `/inventory/${itemId}` : "/inventory")}>Cancel</Button>
+        <Button type="button" variant="secondary" onClick={() => navigate(returnTo || (editing && itemId ? `/inventory/${itemId}` : "/inventory"))}>Cancel</Button>
         <Button type="submit" disabled={saving || !form.item_name.trim()}>{saving ? "Saving…" : "Save item"}</Button>
       </div>
     </form>
