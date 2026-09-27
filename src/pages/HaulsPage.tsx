@@ -10,6 +10,8 @@ import { formatMoney } from "@/lib/format";
 import { useChapters, useCreateChapter, useDeleteChapter, useEnsureMonthlyChapter, usePackages, useCreatePackage, useDeletePackage, useUpdateChapter, useUpdatePackage } from "@/hooks/useChapters";
 import { useAuth } from "@/context/AuthContext";
 import { useInventoryItems } from "@/hooks/useInventory";
+import { PublicIdSortSelect } from "@/components/inventory/PublicIdSortSelect";
+import { sortByPublicId, type PublicIdSortOrder } from "@/lib/inventorySort";
 import type { Database } from "@/types/database.types";
 
 type Chapter = Database["public"]["Tables"]["chapters"]["Row"];
@@ -28,16 +30,16 @@ export function HaulsPage() {
   const [openChapter, setOpenChapter] = useState<string | null>(null);
   const [addingChapter, setAddingChapter] = useState(false);
   const [search, setSearch] = useState("");
-  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [sortOrder, setSortOrder] = useState<PublicIdSortOrder>("oldest");
   const packageById = new Map(allPackages.map((item) => [item.id, item]));
   const chapterById = new Map((chapters ?? []).map((item) => [item.id, item]));
   const needle = search.trim().toLocaleLowerCase();
-  const matchingItems = needle ? (inventory ?? []).filter((item) => {
+  const matchingItems = needle ? sortByPublicId((inventory ?? []).filter((item) => {
     const pack = item.package_id ? packageById.get(item.package_id) : null;
     return item.item_name.toLocaleLowerCase().includes(needle)
       || (item.legacy_public_id ?? "").toLocaleLowerCase().includes(needle)
       || (pack?.title ?? "").toLocaleLowerCase().includes(needle);
-  }).sort((a, b) => (sortOrder === "newest" ? -1 : 1) * (a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))).slice(0, 200) : [];
+  }), (item) => item.legacy_public_id, sortOrder).slice(0, 200) : [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -47,7 +49,7 @@ export function HaulsPage() {
         actions={isAdmin ? <Button onClick={() => setAddingChapter(true)}>+ Chapter</Button> : undefined}
       />
 
-      <div className="flex flex-wrap gap-2"><Input type="search" placeholder="Search items, IDs, packages…" value={search} onChange={(event) => setSearch(event.target.value)} className="max-w-xs" /><Select aria-label="Sort by date" value={sortOrder} onChange={(event) => setSortOrder(event.target.value as "newest" | "oldest")} className="max-w-[200px]"><option value="newest">Newest to oldest</option><option value="oldest">Oldest to newest</option></Select></div>
+      <div className="flex flex-wrap gap-2"><Input type="search" placeholder="Search items, IDs, packages…" value={search} onChange={(event) => setSearch(event.target.value)} className="max-w-xs" /><PublicIdSortSelect value={sortOrder} onChange={setSortOrder} /></div>
 
       {needle ? (
         !matchingItems.length ? <EmptyState title="No matches" /> : <TableScroll><thead><tr><Th>Item</Th><Th>Package</Th>{isAdmin && <Th right>Bought</Th>}{isAdmin && <Th right>Sell for</Th>}{isAdmin && <Th right>Sold for</Th>}<Th>Status</Th></tr></thead><tbody>

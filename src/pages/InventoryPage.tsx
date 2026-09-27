@@ -9,6 +9,8 @@ import { formatMoney } from "@/lib/format";
 import { useCategories, useDeleteInventoryItem, useInventoryItems } from "@/hooks/useInventory";
 import { useItemThumbnails } from "@/hooks/useInventory";
 import { ItemThumbnail } from "@/components/inventory/ItemThumbnail";
+import { PublicIdSortSelect } from "@/components/inventory/PublicIdSortSelect";
+import { sortByPublicId, type PublicIdSortOrder } from "@/lib/inventorySort";
 import { useAuth } from "@/context/AuthContext";
 import type { Database, InventoryStatus } from "@/types/database.types";
 
@@ -30,7 +32,7 @@ export function InventoryPage() {
   const [status, setStatus] = useState<InventoryStatus | "">(() => searchParams.get("status") as InventoryStatus | "" ?? "");
   const [category, setCategory] = useState(() => searchParams.get("category") ?? "");
   const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
-  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">(() => searchParams.get("sort") === "oldest" ? "oldest" : "newest");
+  const [sortOrder, setSortOrder] = useState<PublicIdSortOrder>(() => searchParams.get("sort") === "newest" ? "newest" : "oldest");
   const [page, setPage] = useState(() => Number(searchParams.get("page")) || 0);
   const [toDelete, setToDelete] = useState<InventoryRow | null>(null);
   const deleteItem = useDeleteInventoryItem();
@@ -41,7 +43,7 @@ export function InventoryPage() {
     search: search || undefined,
   });
   const pageSize = 60;
-  const sortedItems = [...(items ?? [])].sort((a, b) => (sortOrder === "newest" ? -1 : 1) * (a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)));
+  const sortedItems = sortByPublicId(items ?? [], (item) => item.legacy_public_id, sortOrder);
   const visibleItems = sortedItems.slice(page * pageSize, (page + 1) * pageSize);
   const { data: thumbnails } = useItemThumbnails(visibleItems.map((item) => item.id));
   const { data: categories } = useCategories();
@@ -57,7 +59,7 @@ export function InventoryPage() {
 
       <div className="flex flex-wrap gap-2">
         <Input placeholder="Search name or ID..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} className="max-w-xs" />
-        <Select aria-label="Sort by date" value={sortOrder} onChange={(e) => { setSortOrder(e.target.value as "newest" | "oldest"); setPage(0); }} className="max-w-[200px]"><option value="newest">Newest to oldest</option><option value="oldest">Oldest to newest</option></Select>
+        <PublicIdSortSelect value={sortOrder} onChange={(value) => { setSortOrder(value); setPage(0); }} />
         <Select value={status} onChange={(e) => { setStatus(e.target.value as InventoryStatus | ""); setPage(0); }} className="max-w-[180px]">
           <option value="">All statuses</option>
           <option value="available">Available</option>

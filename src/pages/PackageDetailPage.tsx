@@ -10,6 +10,8 @@ import { useChapters, usePackage } from "@/hooks/useChapters";
 import { useInventoryItems } from "@/hooks/useInventory";
 import { useItemThumbnails } from "@/hooks/useInventory";
 import { ItemThumbnail } from "@/components/inventory/ItemThumbnail";
+import { PublicIdSortSelect } from "@/components/inventory/PublicIdSortSelect";
+import { sortByPublicId, type PublicIdSortOrder } from "@/lib/inventorySort";
 import { formatMoney } from "@/lib/format";
 import type { Database } from "@/types/database.types";
 
@@ -23,7 +25,9 @@ export function PackageDetailPage() {
   const { data: packageRow, isLoading } = usePackage(packageId);
   const { data: chapters = [] } = useChapters();
   const { data: items = [] } = useInventoryItems({ packageId });
-  const { data: thumbnails } = useItemThumbnails(items.map((item) => item.id));
+  const [sortOrder, setSortOrder] = useState<PublicIdSortOrder>("oldest");
+  const sortedItems = sortByPublicId(items, (item) => item.legacy_public_id, sortOrder);
+  const { data: thumbnails } = useItemThumbnails(sortedItems.map((item) => item.id));
   const [saleTarget, setSaleTarget] = useState<Item | null>(null);
   const chapter = chapters.find((item) => item.id === packageRow?.chapter_id);
   const itemCost = items.reduce((total, item) => total + Number(item.purchase_price ?? 0), 0);
@@ -47,14 +51,14 @@ export function PackageDetailPage() {
       {isAdmin && <Metric label="Won" value={formatMoney(won)} />}
       {isAdmin && <Metric label="Profit" value={formatMoney(won - spent)} />}
     </div>
-    {items.length === 0 ? <EmptyState title="No items in this package" subtitle="Add the package items here." /> : <TableScroll><thead><tr><Th>Item</Th><Th>Category</Th>{isAdmin && <Th right>Bought</Th>}{isAdmin && <Th right>Sell for</Th>}{isAdmin && <Th right>Sold for</Th>}<Th>Status</Th><Th></Th></tr></thead><tbody>
-      {items.map((item) => <tr key={item.id}>
+    {items.length === 0 ? <EmptyState title="No items in this package" subtitle="Add the package items here." /> : <><div className="flex justify-end"><PublicIdSortSelect value={sortOrder} onChange={setSortOrder} /></div><TableScroll><thead><tr><Th>Item</Th><Th>Category</Th>{isAdmin && <Th right>Bought</Th>}{isAdmin && <Th right>Sell for</Th>}{isAdmin && <Th right>Sold for</Th>}<Th>Status</Th><Th></Th></tr></thead><tbody>
+      {sortedItems.map((item) => <tr key={item.id}>
         <Td><div className="flex items-center gap-2"><ItemThumbnail src={thumbnails?.get(item.id)} name={item.item_name} /><div><Link to={`/inventory/${item.id}`} className="font-medium hover:underline">{item.item_name}</Link>{item.legacy_public_id && <div className="text-xs text-neutral-400">{item.legacy_public_id}</div>}</div></div></Td>
         <Td>{item.category ?? "—"}</Td>{isAdmin && <Td right>{formatMoney(item.purchase_price)}</Td>}{isAdmin && <Td right>{formatMoney(item.asking_price)}</Td>}{isAdmin && <Td right>{formatMoney(item.sold_price)}</Td>}
         <Td><Badge tone={item.status === "sold" ? "good" : "neutral"}>{item.status === "sold" ? "Sold" : "Unsold"}</Badge></Td>
         <Td right>{item.status === "available" ? <Button variant="secondary" onClick={() => setSaleTarget(item)}>Sell</Button> : <Link to={`/inventory/${item.id}`} className="text-sm underline">Open</Link>}</Td>
       </tr>)}
-    </tbody></TableScroll>}
+    </tbody></TableScroll></>}
     {saleTarget && <Modal open onClose={() => setSaleTarget(null)} title={`Sell · ${saleTarget.item_name}`}><RecordItemSaleForm item={saleTarget} /></Modal>}
   </div>;
 }

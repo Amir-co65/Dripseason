@@ -18,6 +18,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useItemThumbnails } from "@/hooks/useInventory";
 import { ItemThumbnail } from "@/components/inventory/ItemThumbnail";
 import { CodeScannerButton } from "@/components/inventory/CodeScannerButton";
+import { PublicIdSortSelect } from "@/components/inventory/PublicIdSortSelect";
+import { comparePublicIds, sortByPublicId, type PublicIdSortOrder } from "@/lib/inventorySort";
 
 export function ClosetPage() {
   const { data: sections, isLoading } = useClosetSections();
@@ -25,14 +27,15 @@ export function ClosetPage() {
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState<PublicIdSortOrder>("oldest");
   const { data: allItems = [] } = useInventoryItems();
-  const matches = allItems.filter((item) => { const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean); return terms.length > 0 && terms.some((term) => [item.item_name,item.sku,item.legacy_public_id,item.brand].some((value) => value?.toLowerCase().includes(term))); }).slice(0,100);
+  const matches = sortByPublicId(allItems.filter((item) => { const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean); return terms.length > 0 && terms.some((term) => [item.item_name,item.sku,item.legacy_public_id,item.brand].some((value) => value?.toLowerCase().includes(term))); }), (item) => item.legacy_public_id, sortOrder).slice(0,100);
   const { data: thumbnails } = useItemThumbnails(matches.map((item) => item.id));
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Closet" subtitle={`${sections?.length ?? 0} storage spots`} actions={<Button onClick={() => setAdding(true)}>+ Section</Button>} />
-      <div className="flex gap-2"><Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find by name, SKU, public ID or brand…" className="max-w-md" /><CodeScannerButton onDetected={(codes) => setSearch(codes.join(" "))} /></div>
+      <div className="flex flex-wrap gap-2"><Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find by name, SKU, public ID or brand…" className="max-w-md" /><CodeScannerButton onDetected={(codes) => setSearch(codes.join(" "))} /><PublicIdSortSelect value={sortOrder} onChange={setSortOrder} /></div>
       {search.trim() && <div className="rounded-xl border border-neutral-200 bg-white">{matches.length ? matches.map((item) => <div key={item.id} className="flex items-center gap-3 border-b border-neutral-100 p-3 last:border-0"><ItemThumbnail src={thumbnails?.get(item.id)} name={item.item_name}/><div className="min-w-0"><div className="font-medium">{item.item_name}</div><div className="text-sm text-neutral-500">{[item.legacy_public_id,item.sku,item.brand].filter(Boolean).join(" · ")}</div></div><div className="ml-auto text-right text-sm"><div className="text-neutral-500">Location</div><div className="font-medium">{item.closet_location ?? "Not placed"}</div></div></div>) : <p className="p-3 text-sm text-neutral-500">No matching product.</p>}</div>}
 
       {isLoading ? (
@@ -54,7 +57,7 @@ export function ClosetPage() {
       )}
 
       {adding && <SectionFormModal onClose={() => setAdding(false)} />}
-      {open && <SectionDetailModal sectionId={open} sectionName={sections?.find((s) => s.id === open)?.name ?? "Section"} isAdmin={profile?.role === "admin"} onDeleted={() => setOpen(null)} onClose={() => setOpen(null)} />}
+      {open && <SectionDetailModal sectionId={open} sectionName={sections?.find((s) => s.id === open)?.name ?? "Section"} isAdmin={profile?.role === "admin"} sortOrder={sortOrder} onSortOrderChange={setSortOrder} onDeleted={() => setOpen(null)} onClose={() => setOpen(null)} />}
     </div>
   );
 }
@@ -95,7 +98,7 @@ function SectionFormModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function SectionDetailModal({ sectionId, sectionName, isAdmin, onClose, onDeleted }: { sectionId: string; sectionName: string; isAdmin: boolean; onClose: () => void; onDeleted: () => void }) {
+function SectionDetailModal({ sectionId, sectionName, isAdmin, sortOrder, onSortOrderChange, onClose, onDeleted }: { sectionId: string; sectionName: string; isAdmin: boolean; sortOrder: PublicIdSortOrder; onSortOrderChange: (value: PublicIdSortOrder) => void; onClose: () => void; onDeleted: () => void }) {
   const { data: placed } = useItemsInSection(sectionId);
   const { data: available } = useInventoryItems({});
   const assign = useAssignItemToSection();
@@ -113,6 +116,7 @@ function SectionDetailModal({ sectionId, sectionName, isAdmin, onClose, onDelete
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-semibold">{sectionName}</h3>
           <div className="flex gap-2">
+            <PublicIdSortSelect value={sortOrder} onChange={onSortOrderChange} />
             <Button type="button" variant="secondary" onClick={() => setEditingName((value) => !value)}>{editingName ? "Cancel rename" : "Rename"}</Button>
             {isAdmin && <Button type="button" variant="danger" onClick={() => setConfirmDelete(true)}>Delete section</Button>}
           </div>
@@ -125,9 +129,9 @@ function SectionDetailModal({ sectionId, sectionName, isAdmin, onClose, onDelete
           {!placed || placed.length === 0 ? (
             <p className="p-3 text-sm text-neutral-400">Nothing placed here yet.</p>
           ) : (
-            placed.map((p: any) => (
+            [...placed].sort((a: any, b: any) => comparePublicIds(a.inventory_items?.legacy_public_id, b.inventory_items?.legacy_public_id, sortOrder)).map((p: any) => (
               <div key={p.id} className="flex items-center justify-between border-b border-neutral-100 px-3 py-2 last:border-0">
-                <span className="text-sm">{p.inventory_items?.item_name ?? "—"}</span>
+                <span className="text-sm">{p.inventory_items?.legacy_public_id ? `${p.inventory_items.legacy_public_id} · ` : ""}{p.inventory_items?.item_name ?? "—"}</span>
                 <button className="text-xs text-neutral-400 hover:text-red-600" onClick={() => remove.mutate(p.id)}>
                   Remove
                 </button>
@@ -139,9 +143,9 @@ function SectionDetailModal({ sectionId, sectionName, isAdmin, onClose, onDelete
         <div className="flex gap-2">
           <Select value={itemToAdd} onChange={(e) => setItemToAdd(e.target.value)} className="flex-1">
             <option value="">Add an item to this section...</option>
-            {(available ?? []).map((it) => (
+            {sortByPublicId(available ?? [], (it) => it.legacy_public_id, sortOrder).map((it) => (
               <option key={it.id} value={it.id}>
-                {it.item_name}
+                {it.legacy_public_id ? `${it.legacy_public_id} · ` : ""}{it.item_name}
               </option>
             ))}
           </Select>
