@@ -14,7 +14,9 @@ on conflict (slug) do nothing;
 alter table public.marketplace_accounts drop constraint if exists marketplace_accounts_platform_check;
 alter table public.posting_accounts drop constraint if exists posting_accounts_platform_check;
 alter table public.platforms enable row level security;
+drop policy if exists "platforms_read" on public.platforms;
 create policy "platforms_read" on public.platforms for select to authenticated using (true);
+drop policy if exists "platforms_manage_admin" on public.platforms;
 create policy "platforms_manage_admin" on public.platforms for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- Generic per-platform posting replaces the two historical fixed columns.
@@ -28,9 +30,12 @@ create table if not exists public.item_postings (
   unique(inventory_item_id, platform_slug)
 );
 create index if not exists idx_item_postings_lookup on public.item_postings(platform_slug, status, inventory_item_id);
+drop trigger if exists trg_item_postings_updated on public.item_postings;
 create trigger trg_item_postings_updated before update on public.item_postings for each row execute function public.set_updated_at();
 alter table public.item_postings enable row level security;
+drop policy if exists "item_postings_read" on public.item_postings;
 create policy "item_postings_read" on public.item_postings for select to authenticated using (true);
+drop policy if exists "item_postings_write" on public.item_postings;
 create policy "item_postings_write" on public.item_postings for all to authenticated using (true) with check (true);
 
 insert into public.item_postings (inventory_item_id, platform_slug, status, posting_account_id)
@@ -58,10 +63,14 @@ from public.inventory_items where deleted_at is null;
 drop policy if exists "marketplace_accounts_insert_admin" on public.marketplace_accounts;
 drop policy if exists "marketplace_accounts_update_admin" on public.marketplace_accounts;
 drop policy if exists "marketplace_accounts_delete_admin" on public.marketplace_accounts;
+drop policy if exists "marketplace_accounts_insert_authenticated" on public.marketplace_accounts;
+drop policy if exists "marketplace_accounts_update_owner_or_admin" on public.marketplace_accounts;
+drop policy if exists "marketplace_accounts_delete_owner_or_admin" on public.marketplace_accounts;
 create policy "marketplace_accounts_insert_authenticated" on public.marketplace_accounts for insert to authenticated with check (created_by = auth.uid() or created_by is null);
 create policy "marketplace_accounts_update_owner_or_admin" on public.marketplace_accounts for update to authenticated using (public.is_admin() or created_by = auth.uid() or account_owner_id = auth.uid()) with check (public.is_admin() or created_by = auth.uid() or account_owner_id = auth.uid());
 create policy "marketplace_accounts_delete_owner_or_admin" on public.marketplace_accounts for delete to authenticated using (public.is_admin() or created_by = auth.uid());
 drop policy if exists "chapters_update_authenticated" on public.chapters;
+drop policy if exists "chapters_update_admin" on public.chapters;
 create policy "chapters_update_admin" on public.chapters for update to authenticated using (public.is_admin()) with check (public.is_admin());
 -- Do not grant raw credential-column reads to workers. The view runs with its
 -- owner's column permissions and explicitly decides what each caller sees.
@@ -72,7 +81,7 @@ select id, platform, label, posting_account_number, balance,
  case when public.is_admin() or created_by = auth.uid() or account_owner_id = auth.uid() then username else null end as username,
  case when public.is_admin() or created_by = auth.uid() or account_owner_id = auth.uid() then password else null end as password,
  case when public.is_admin() or created_by = auth.uid() or account_owner_id = auth.uid() then phone else null end as phone,
- account_owner_id, banned, legacy_id, created_by, created_at, updated_at
+ notes, banned, legacy_id, created_by, created_at, updated_at, account_owner_id
 from public.marketplace_accounts;
 
 -- Derive the sale account from the item's posting record whenever possible.
@@ -157,6 +166,7 @@ create table if not exists public.undo_events (
  row_before jsonb, row_after jsonb, created_at timestamptz not null default now(), expires_at timestamptz not null default now() + interval '24 hours', undone_at timestamptz
 );
 alter table public.undo_events enable row level security;
+drop policy if exists "undo_own" on public.undo_events;
 create policy "undo_own" on public.undo_events for select to authenticated using(user_id=auth.uid());
 create or replace function public.capture_undo() returns trigger language plpgsql security definer set search_path=public as $$
 begin
