@@ -4,19 +4,40 @@ import type { Database } from "@/types/database.types";
 type ChapterInsert = Database["public"]["Tables"]["chapters"]["Insert"];
 type ChapterUpdate = Database["public"]["Tables"]["chapters"]["Update"];
 
+// Pulls the first number found in the haul's name, e.g. "Chapter 16" -> 16
+function extractHaulNumber(name: string | null | undefined): number {
+  if (!name) return -Infinity; // unnumbered haul, put last in a descending sort
+  const match = name.match(/\d+/);
+  return match ? parseInt(match[0], 10) : -Infinity;
+}
+
 export async function listChapters() {
   const { data, error } = await supabase
     .from("chapters")
     .select("*")
-    .order("chapter_number", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true })
     .order("id", { ascending: true });
   if (error) throw error;
-  return data;
+
+  // Sort by the number parsed out of the name, descending (highest on top)
+  const sorted = [...(data ?? [])].sort((a, b) => {
+    const numA = extractHaulNumber(a.name);
+    const numB = extractHaulNumber(b.name);
+    return numB - numA;
+  });
+
+  return sorted;
 }
 
 export async function createChapter(input: ChapterInsert) {
   let chapterNumber = input.chapter_number;
+
+  const parsedFromName = extractHaulNumber((input as { name?: string }).name);
+
+  if (chapterNumber == null && Number.isFinite(parsedFromName)) {
+    chapterNumber = parsedFromName;
+  }
+
   if (chapterNumber == null) {
     const { data: latest, error: latestError } = await supabase
       .from("chapters")
