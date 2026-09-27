@@ -8,13 +8,28 @@ export async function listChapters() {
   const { data, error } = await supabase
     .from("chapters")
     .select("*")
-    .order("chapter_number", { ascending: false, nullsFirst: false });
+    .order("chapter_number", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
   if (error) throw error;
   return data;
 }
 
 export async function createChapter(input: ChapterInsert) {
-  const { data, error } = await supabase.from("chapters").insert(input).select().single();
+  let chapterNumber = input.chapter_number;
+  if (chapterNumber == null) {
+    const { data: latest, error: latestError } = await supabase
+      .from("chapters")
+      .select("chapter_number")
+      .not("chapter_number", "is", null)
+      .order("chapter_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestError) throw latestError;
+    chapterNumber = (latest?.chapter_number ?? 0) + 1;
+  }
+
+  const { data, error } = await supabase.from("chapters").insert({ ...input, chapter_number: chapterNumber }).select().single();
   if (error) throw error;
   return data;
 }
