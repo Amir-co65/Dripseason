@@ -10,6 +10,15 @@ import type { Database } from "@/types/database.types";
 
 type Item = Database["public"]["Tables"]["inventory_items"]["Row"];
 
+function getSaveErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+  return "Could not save this item.";
+}
+
 export function InventoryItemFormPage() {
   const { itemId } = useParams();
   const navigate = useNavigate();
@@ -63,7 +72,7 @@ export function InventoryItemFormPage() {
         : await create.mutateAsync(payload as Database["public"]["Tables"]["inventory_items"]["Insert"]);
       navigate(returnTo || `/inventory/${saved.id}`, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save this item.");
+      setError(getSaveErrorMessage(err));
     }
   }
 
