@@ -68,15 +68,10 @@ export async function getInventoryItem(id: string) {
  * written to because of its CASE-masked columns). RLS on the base table
  * still applies normally. */
 export async function createInventoryItem(input: ItemInsert) {
-  const { data: existing, error: lookupError } = await supabase.from("inventory_items_secure").select("legacy_public_id").not("legacy_public_id", "is", null);
-  if (lookupError) throw lookupError;
-  let highest = 0;
-  for (const row of existing ?? []) {
-    const match = /^(\d+)b0$/i.exec(row.legacy_public_id ?? "");
-    if (match) highest = Math.max(highest, Number(match[1]));
-  }
-  const legacyPublicId = input.legacy_public_id ?? `${String(highest + 1).padStart(3, "0")}b0`;
-  const { data, error } = await supabase.from("inventory_items").insert({ ...input, legacy_public_id: legacyPublicId }).select().single();
+  // The database assigns legacy_public_id in the same transaction as the
+  // insert. Doing this in the browser can miss rows past PostgREST's page
+  // limit and allows two simultaneous saves to pick the same ID.
+  const { data, error } = await supabase.from("inventory_items").insert(input).select().single();
   if (error) throw error;
   return data;
 }
