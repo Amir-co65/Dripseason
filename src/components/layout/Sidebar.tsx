@@ -2,11 +2,12 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import type { ReactNode } from "react";
 
-export type IconName = "dashboard" | "hauls" | "available" | "sold" | "posting" | "accounts" | "closet" | "trades" | "wallet" | "settings";
+export type IconName = "dashboard" | "hauls" | "tracking" | "available" | "sold" | "posting" | "accounts" | "closet" | "trades" | "wallet" | "settings";
 
 const paths: Record<IconName, ReactNode> = {
   dashboard: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></>,
   hauls: <><path d="M3 7h18l-1.5 13h-15L3 7Z" /><path d="M8 9V6a4 4 0 0 1 8 0v3" /></>,
+  tracking: <><path d="M3 7h12v11H3zM15 11h4l3 3v4h-7z" /><circle cx="7" cy="19" r="2" /><circle cx="18" cy="19" r="2" /></>,
   available: <><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z" /><path d="m4.5 7.7 7.5 4.4 7.5-4.4M12 12v9" /></>,
   sold: <><path d="M4 12.5 9.5 18 20 6" /><circle cx="12" cy="12" r="9" /></>,
   posting: <><path d="M21 3 10 14" /><path d="m21 3-7 18-4-7-7-4 18-7Z" /></>,
@@ -24,6 +25,7 @@ export function NavIcon({ name }: { name: IconName }) {
 const navItems: { to: string; label: string; icon: IconName; adminOnly?: boolean }[] = [
   { to: "/dashboard", label: "Dashboard", icon: "dashboard", adminOnly: true },
   { to: "/hauls", label: "Hauls", icon: "hauls" },
+  { to: "/tracking-codes", label: "Tracking codes", icon: "tracking" },
   { to: "/available", label: "Available", icon: "available" },
   { to: "/sold", label: "Sold", icon: "sold" },
   { to: "/posting", label: "Posting", icon: "posting" },

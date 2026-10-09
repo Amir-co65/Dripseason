@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { PageHeader, EmptyState } from "@/components/ui/Display";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -10,6 +10,8 @@ import { formatMoney } from "@/lib/format";
 import { useChapters, useCreateChapter, useDeleteChapter, useEnsureMonthlyChapter, usePackages, useCreatePackage, useDeletePackage, useUpdateChapter, useUpdatePackage } from "@/hooks/useChapters";
 import { useAuth } from "@/context/AuthContext";
 import { useInventoryItems } from "@/hooks/useInventory";
+import { useItemThumbnails } from "@/hooks/useInventory";
+import { ItemThumbnail } from "@/components/inventory/ItemThumbnail";
 import { PublicIdSortSelect } from "@/components/inventory/PublicIdSortSelect";
 import { sortByPublicId, type PublicIdSortOrder } from "@/lib/inventorySort";
 import type { Database } from "@/types/database.types";
@@ -29,7 +31,8 @@ export function HaulsPage() {
   for (const item of inventory ?? []) if (item.package_id) itemCounts.set(item.package_id, (itemCounts.get(item.package_id) ?? 0) + 1);
   const [openChapter, setOpenChapter] = useState<string | null>(null);
   const [addingChapter, setAddingChapter] = useState(false);
-  const [search, setSearch] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get("search") ?? "";
   const [sortOrder, setSortOrder] = useState<PublicIdSortOrder>("oldest");
   const packageById = new Map(allPackages.map((item) => [item.id, item]));
   const chapterById = new Map((chapters ?? []).map((item) => [item.id, item]));
@@ -40,6 +43,8 @@ export function HaulsPage() {
       || (item.legacy_public_id ?? "").toLocaleLowerCase().includes(needle)
       || (pack?.title ?? "").toLocaleLowerCase().includes(needle);
   }), (item) => item.legacy_public_id, sortOrder).slice(0, 200) : [];
+  const { data: thumbnails } = useItemThumbnails(matchingItems.map((item) => item.id));
+  const returnToHauls = `/hauls${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -49,11 +54,11 @@ export function HaulsPage() {
         actions={isAdmin ? <Button onClick={() => setAddingChapter(true)}>+ Chapter</Button> : undefined}
       />
 
-      <div className="flex flex-wrap gap-2"><Input type="search" placeholder="Search items, IDs, packages…" value={search} onChange={(event) => setSearch(event.target.value)} className="max-w-xs" /><PublicIdSortSelect value={sortOrder} onChange={setSortOrder} /></div>
+      <div className="flex flex-wrap gap-2"><Input type="search" placeholder="Search items, IDs, packages…" value={search} onChange={(event) => { const next = new URLSearchParams(searchParams); if (event.target.value) next.set("search", event.target.value); else next.delete("search"); setSearchParams(next, { replace: true }); }} className="max-w-xs" /><PublicIdSortSelect value={sortOrder} onChange={setSortOrder} /></div>
 
       {needle ? (
-        !matchingItems.length ? <EmptyState title="No matches" /> : <TableScroll><thead><tr><Th>Item</Th><Th>Package</Th>{isAdmin && <Th right>Bought</Th>}{isAdmin && <Th right>Sell for</Th>}{isAdmin && <Th right>Sold for</Th>}<Th>Status</Th></tr></thead><tbody>
-          {matchingItems.map((item) => { const pack = item.package_id ? packageById.get(item.package_id) : null; const chapter = pack ? chapterById.get(pack.chapter_id) : null; return <tr key={item.id}><Td><Link to={`/inventory/${item.id}`} className="font-medium hover:underline">{item.item_name}</Link>{item.legacy_public_id && <div className="text-xs text-neutral-400">{item.legacy_public_id}</div>}</Td><Td>{pack ? <>{pack.title}{chapter && <span className="text-neutral-400"> · {chapter.name}</span>}</> : "—"}</Td>{isAdmin && <Td right>{formatMoney(item.purchase_price)}</Td>}{isAdmin && <Td right>{formatMoney(item.asking_price)}</Td>}{isAdmin && <Td right>{item.status === "sold" ? formatMoney(item.sold_price) : "—"}</Td>}<Td>{item.status === "sold" ? "Sold" : "Unsold"}</Td></tr>; })}
+        !matchingItems.length ? <EmptyState title="No matches" /> : <TableScroll><thead><tr><Th>Item</Th><Th>Package</Th>{isAdmin && <Th right>Bought</Th>}{isAdmin && <Th right>Sell for</Th>}{isAdmin && <Th right>Sold for</Th>}<Th>Status</Th><Th></Th></tr></thead><tbody>
+          {matchingItems.map((item) => { const pack = item.package_id ? packageById.get(item.package_id) : null; const chapter = pack ? chapterById.get(pack.chapter_id) : null; const arriving = pack?.arrival_status === "arriving"; const itemUrl = `/inventory/${item.id}?returnTo=${encodeURIComponent(returnToHauls)}`; return <tr key={item.id} className={arriving ? "bg-neutral-200/70 text-neutral-600 shadow-inner" : ""}><Td><div className="flex items-center gap-2"><ItemThumbnail src={thumbnails?.get(item.id)} name={item.item_name} /><div><Link to={itemUrl} className="font-medium hover:underline">{item.item_name}</Link>{item.legacy_public_id && <div className="text-xs text-neutral-400">{item.legacy_public_id}</div>}</div></div></Td><Td>{pack ? <>{pack.title}{chapter && <span className="text-neutral-400"> · {chapter.name}</span>}</> : "—"}</Td>{isAdmin && <Td right>{formatMoney(item.purchase_price)}</Td>}{isAdmin && <Td right>{formatMoney(item.asking_price)}</Td>}{isAdmin && <Td right>{item.status === "sold" ? formatMoney(item.sold_price) : "—"}</Td>}<Td><span className={item.status === "sold" ? "font-medium text-red-600" : "font-medium text-green-700"}>{item.status === "sold" ? "Sold" : "Unsold"}</span>{arriving && <div className="text-xs text-neutral-500">Arriving</div>}</Td><Td right><Link to={`/inventory/${item.id}/edit?returnTo=${encodeURIComponent(returnToHauls)}`} className="rounded-lg px-3 py-2 text-sm font-medium hover:bg-neutral-100">Edit</Link>{pack && <Link to={`/hauls/packages/${pack.id}`} className="rounded-lg px-3 py-2 text-sm font-medium text-neutral-500 hover:bg-neutral-100">Haul</Link>}</Td></tr>; })}
         </tbody></TableScroll>
       ) : isLoading ? (
         <p className="text-sm text-neutral-400">Loading...</p>
@@ -116,7 +121,7 @@ function ChapterRow({ chapter, chapters, open, onToggle, isAdmin, itemCounts }: 
               </thead>
               <tbody>
                 {packages.map((p) => (
-                  <tr key={p.id}>
+                  <tr key={p.id} className={p.arrival_status === "arriving" ? "bg-neutral-200/70 text-neutral-600 shadow-inner" : ""}>
                     <Td>
                       <Link to={`/hauls/packages/${p.id}`} className="font-medium hover:underline">{p.title}</Link>
                       {p.info && <div className="text-xs text-neutral-400">{p.info}</div>}

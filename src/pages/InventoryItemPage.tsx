@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useMarketplaceAccounts, usePostingAccounts } from "@/hooks/useAccounts";
 import { useItemPostings, usePlatforms } from "@/hooks/usePlatforms";
@@ -19,6 +19,7 @@ const statusTone: Record<InventoryStatus, "neutral" | "good" | "bad" | "warn"> =
 
 export function InventoryItemPage() {
   const { itemId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
@@ -34,25 +35,22 @@ export function InventoryItemPage() {
   if (item.package_id && packageError) return <EmptyState title="Arrival status unavailable" subtitle="Open this item from its package in Hauls." />;
   if (itemPackage?.arrival_status === "arriving") return <EmptyState title="This item has not arrived yet" subtitle="You can view it from its package in Hauls." />;
   const itemSales = (sales ?? []).filter((sale) => sale.inventory_item_id === item.id);
+  const backTarget = searchParams.get("returnTo") || (item.package_id ? `/hauls/packages/${item.package_id}` : "/inventory");
 
   return <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
-    <PageHeader title={item.item_name} subtitle={item.legacy_public_id ? `Project26 ID · ${item.legacy_public_id}` : item.sku ? `SKU · ${item.sku}` : "Inventory item"}
-      actions={<><Button variant="secondary" onClick={() => navigate("/inventory")}>Back</Button><Button onClick={() => navigate(`/inventory/${item.id}/edit`)}>Edit item</Button></>} />
+    <PageHeader title={item.item_name} subtitle={item.legacy_public_id ? `Project26 ID · ${item.legacy_public_id}` : "Inventory item"}
+      actions={<><Button variant="secondary" onClick={() => navigate(backTarget)}>Back</Button><Button onClick={() => navigate(`/inventory/${item.id}/edit?returnTo=${encodeURIComponent(backTarget)}`)}>Edit item</Button></>} />
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.8fr)]">
       <section className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-4 sm:p-6">
         <div className="flex items-center justify-between"><h2 className="font-semibold">Item details</h2><Badge tone={statusTone[item.status]}>{item.status}</Badge></div>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm">
           <Detail label="Category" value={item.category} />
-          <Detail label="Brand" value={item.brand} />
-          <Detail label="Size" value={item.size} />
-          <Detail label="Color" value={item.color} />
-          <Detail label="SKU" value={item.sku} />
+          {item.package_id && <div className="col-span-2"><dt className="text-neutral-500">Haul</dt><dd className="mt-0.5 font-medium"><Link to={`/hauls/packages/${item.package_id}`} className="underline">Open this item's package</Link></dd></div>}
           <Detail label="Asking price" value={formatMoney(item.asking_price)} />
           {isAdmin && <Detail label="Bought for" value={formatMoney(item.purchase_price)} />}
           {isAdmin && <Detail label="Sold for" value={formatMoney(item.sold_price)} />}
           <Detail label="Added" value={formatDate(item.created_at)} />
         </dl>
-        {item.description && <div><h3 className="mb-1 text-sm font-medium">Description</h3><p className="whitespace-pre-wrap text-sm text-neutral-600">{item.description}</p></div>}
         {item.notes && <div><h3 className="mb-1 text-sm font-medium">Notes</h3><p className="whitespace-pre-wrap text-sm text-neutral-600">{item.notes}</p></div>}
       </section>
       <section className="rounded-xl border border-neutral-200 bg-white p-4 sm:p-6"><PhotoGallery inventoryItemId={item.id} /></section>
@@ -61,7 +59,7 @@ export function InventoryItemPage() {
     {itemSales.length > 0 && <section className="rounded-xl border border-neutral-200 bg-white p-4 sm:p-6"><h2 className="mb-3 font-semibold">Sale history</h2><div className="divide-y divide-neutral-100">{itemSales.map((sale) => <div key={sale.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm"><span>{formatDate(sale.sale_date)} · {sale.sale_platform ?? "—"}</span><span>{isAdmin ? formatMoney(sale.sold_price) : "Recorded"}</span></div>)}</div></section>}
     <div className="flex justify-end">{isAdmin && <Button variant="danger" onClick={() => setConfirmDelete(true)}>Delete item</Button>}</div>
     {confirmDelete && <ConfirmDialog open title="Delete item" message={`Permanently delete “${item.item_name}”?`} confirmLabel="Delete" danger onCancel={() => setConfirmDelete(false)} onConfirm={async () => { await remove.mutateAsync(item.id); navigate("/inventory", { replace: true }); }} />}
-    <Link to="/inventory" className="text-sm text-neutral-500 hover:underline">Back to inventory</Link>
+    <button type="button" onClick={() => navigate(backTarget)} className="text-left text-sm text-neutral-500 hover:underline">Back</button>
   </div>;
 }
 

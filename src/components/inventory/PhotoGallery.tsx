@@ -15,12 +15,13 @@ export function PhotoGallery({ inventoryItemId }: { inventoryItemId: string }) {
   const photos = (media ?? []).filter((m) => m.kind === "photo");
   const links = (media ?? []).filter((m) => m.kind === "link");
 
-  async function handleFiles(files: FileList | null) {
-    if (!files || files.length === 0) return;
+  async function handleFiles(files: FileList | File[] | null) {
+    const selectedFiles = files ? Array.from(files) : [];
+    if (selectedFiles.length === 0) return;
     setError(null);
     try {
       let position = photos.length;
-      for (const file of Array.from(files)) {
+      for (const file of selectedFiles) {
         await upload.mutateAsync({ inventoryItemId, file, position });
         position++;
       }
@@ -28,6 +29,35 @@ export function PhotoGallery({ inventoryItemId }: { inventoryItemId: string }) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function uploadImageUrl(url: string) {
+    setError(null);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Could not load that image. Try saving it to your device first.");
+      const blob = await response.blob();
+      if (!blob.type.startsWith("image/")) throw new Error("That link does not point directly to an image.");
+      const lastPathPart = new URL(url).pathname.split("/").pop() || "pasted-image";
+      const file = new File([blob], lastPathPart.includes(".") ? lastPathPart : `${lastPathPart}.jpg`, { type: blob.type });
+      await handleFiles([file]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not add that image.");
+    }
+  }
+
+  function handlePaste(event: React.ClipboardEvent<HTMLDivElement>) {
+    const files = Array.from(event.clipboardData.files);
+    if (files.length) {
+      event.preventDefault();
+      void handleFiles(files);
+      return;
+    }
+    const pasted = (event.clipboardData.getData("text/uri-list") || event.clipboardData.getData("text/plain")).trim();
+    if (/^https?:\/\//i.test(pasted)) {
+      event.preventDefault();
+      void uploadImageUrl(pasted);
     }
   }
 
@@ -43,7 +73,7 @@ export function PhotoGallery({ inventoryItemId }: { inventoryItemId: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 outline-none" tabIndex={0} onPaste={handlePaste} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }} onDrop={(event) => { event.preventDefault(); if (event.dataTransfer.files.length) void handleFiles(event.dataTransfer.files); else { const url = (event.dataTransfer.getData("text/uri-list") || event.dataTransfer.getData("text/plain")).trim(); if (/^https?:\/\//i.test(url)) void uploadImageUrl(url); } }}>
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-neutral-700">Photos</span>
         <Button type="button" variant="secondary" onClick={() => fileRef.current?.click()} disabled={upload.isPending}>
@@ -82,6 +112,8 @@ export function PhotoGallery({ inventoryItemId }: { inventoryItemId: string }) {
           {photos.length === 0 && <p className="text-sm text-neutral-400">No photos yet.</p>}
         </div>
       )}
+
+      <p className="text-xs text-neutral-400">You can also drag an image here or focus this area and paste an image or direct image link.</p>
 
       {links.length > 0 && (
         <div className="flex flex-col gap-1">

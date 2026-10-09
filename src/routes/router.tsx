@@ -11,6 +11,7 @@ import { InventoryItemFormPage } from "@/pages/InventoryItemFormPage";
 import { InventoryItemPage } from "@/pages/InventoryItemPage";
 import { PackageDetailPage } from "@/pages/PackageDetailPage";
 import { HaulsPage } from "@/pages/HaulsPage";
+import { TrackingCodesPage } from "@/pages/TrackingCodesPage";
 import { SoldPage } from "@/pages/SoldPage";
 import { PostingPage } from "@/pages/PostingPage";
 import { WalletPage } from "@/pages/WalletPage";
@@ -61,6 +62,7 @@ export function AppRouter() {
         <Route path="/inventory/:itemId/edit" element={<Page><InventoryItemFormPage /></Page>} />
         <Route path="/inventory/:itemId" element={<Page><InventoryItemPage /></Page>} />
         <Route path="/hauls" element={<Page><HaulsPage /></Page>} />
+        <Route path="/tracking-codes" element={<Page><TrackingCodesPage /></Page>} />
         <Route path="/hauls/packages/:packageId" element={<Page><PackageDetailPage /></Page>} />
         <Route path="/sold" element={<Page><SoldPage /></Page>} />
         <Route path="/posting" element={<Page><PostingPage /></Page>} />
