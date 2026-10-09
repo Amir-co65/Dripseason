@@ -17,6 +17,7 @@ import { useNonArrivingInventoryItems } from "@/hooks/useInventory";
 import { useAuth } from "@/context/AuthContext";
 import { useItemThumbnails } from "@/hooks/useInventory";
 import { ItemThumbnail } from "@/components/inventory/ItemThumbnail";
+import { CopyablePublicId } from "@/components/inventory/CopyablePublicId";
 import { CodeScannerButton } from "@/components/inventory/CodeScannerButton";
 import { PublicIdSortSelect } from "@/components/inventory/PublicIdSortSelect";
 import { comparePublicIds, sortByPublicId, type PublicIdSortOrder } from "@/lib/inventorySort";
@@ -36,7 +37,7 @@ export function ClosetPage() {
     <div className="flex flex-col gap-4">
       <PageHeader title="Closet" subtitle={`${sections?.length ?? 0} storage spots`} actions={<Button onClick={() => setAdding(true)}>+ Section</Button>} />
       <div className="flex flex-wrap gap-2"><Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find by name, SKU, public ID or brand…" className="max-w-md" /><CodeScannerButton onDetected={(codes) => setSearch(codes.join(" "))} /><PublicIdSortSelect value={sortOrder} onChange={setSortOrder} /></div>
-      {search.trim() && <div className="rounded-xl border border-neutral-200 bg-white">{matches.length ? matches.map((item) => <div key={item.id} className="flex items-center gap-3 border-b border-neutral-100 p-3 last:border-0"><ItemThumbnail src={thumbnails?.get(item.id)} name={item.item_name}/><div className="min-w-0"><div className="font-medium">{item.item_name}</div><div className="text-sm text-neutral-500">{[item.legacy_public_id,item.sku,item.brand].filter(Boolean).join(" · ")}</div></div><div className="ml-auto text-right text-sm"><div className="text-neutral-500">Location</div><div className="font-medium">{item.closet_location ?? "Not placed"}</div></div></div>) : <p className="p-3 text-sm text-neutral-500">No matching product.</p>}</div>}
+      {search.trim() && <div className="rounded-xl border border-neutral-200 bg-white">{matches.length ? matches.map((item) => <div key={item.id} className="flex items-center gap-3 border-b border-neutral-100 p-3 last:border-0"><ItemThumbnail src={thumbnails?.get(item.id)} name={item.item_name}/><div className="min-w-0"><div className="font-medium">{item.item_name}</div><div className="text-sm text-neutral-500"><CopyablePublicId value={item.legacy_public_id} />{item.legacy_public_id && (item.sku || item.brand) ? " · " : ""}{[item.sku,item.brand].filter(Boolean).join(" · ")}</div></div><div className="ml-auto text-right text-sm"><div className="text-neutral-500">Location</div><div className="font-medium">{item.closet_location ?? "Not placed"}</div></div></div>) : <p className="p-3 text-sm text-neutral-500">No matching product.</p>}</div>}
 
       {isLoading ? (
         <p className="text-sm text-neutral-400">Loading...</p>
@@ -133,7 +134,7 @@ function SectionDetailModal({ sectionId, sectionName, isAdmin, sortOrder, onSort
           ) : (
             [...visiblePlaced].sort((a: any, b: any) => comparePublicIds(a.inventory_items?.legacy_public_id, b.inventory_items?.legacy_public_id, sortOrder)).map((p: any) => (
               <div key={p.id} className="flex items-center justify-between border-b border-neutral-100 px-3 py-2 last:border-0">
-                <span className="text-sm">{p.inventory_items?.legacy_public_id ? `${p.inventory_items.legacy_public_id} · ` : ""}{p.inventory_items?.item_name ?? "—"}</span>
+                <span className="text-sm">{p.inventory_items?.legacy_public_id ? <><CopyablePublicId value={p.inventory_items.legacy_public_id} /> · </> : ""}{p.inventory_items?.item_name ?? "—"}</span>
                 <button className="text-xs text-neutral-400 hover:text-red-600" onClick={() => remove.mutate(p.id)}>
                   Remove
                 </button>
@@ -144,7 +145,7 @@ function SectionDetailModal({ sectionId, sectionName, isAdmin, sortOrder, onSort
 
         <div className="rounded-lg border border-neutral-200 p-3">
           <div className="mb-2 flex flex-wrap gap-2"><Input type="search" value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder="Type to find products to add…" className="flex-1" /><Button type="button" disabled={!selectedItemIds.length || assign.isPending} onClick={() => { selectedItemIds.forEach((inventoryItemId) => assign.mutate({ sectionId, inventoryItemId })); setSelectedItemIds([]); setItemSearch(""); }}>Add {selectedItemIds.length || ""} selected</Button></div>
-          {itemSearch.trim() && <div className="max-h-48 overflow-y-auto rounded border border-neutral-100">{sortByPublicId((available ?? []).filter((it) => [it.item_name, it.legacy_public_id, it.sku, it.brand].some((value) => value?.toLowerCase().includes(itemSearch.trim().toLowerCase()))).slice(0, 100), (it) => it.legacy_public_id, sortOrder).map((it) => <label key={it.id} className="flex cursor-pointer items-center gap-2 border-b border-neutral-100 p-2 text-sm last:border-0"><input type="checkbox" checked={selectedItemIds.includes(it.id)} onChange={() => setSelectedItemIds((ids) => ids.includes(it.id) ? ids.filter((id) => id !== it.id) : [...ids, it.id])} /><span>{it.legacy_public_id ? `${it.legacy_public_id} · ` : ""}{it.item_name}</span></label>)}</div>}
+          {itemSearch.trim() && <div className="max-h-48 overflow-y-auto rounded border border-neutral-100">{sortByPublicId((available ?? []).filter((it) => [it.item_name, it.legacy_public_id, it.sku, it.brand].some((value) => value?.toLowerCase().includes(itemSearch.trim().toLowerCase()))).slice(0, 100), (it) => it.legacy_public_id, sortOrder).map((it) => <label key={it.id} className="flex cursor-pointer items-center gap-2 border-b border-neutral-100 p-2 text-sm last:border-0"><input type="checkbox" checked={selectedItemIds.includes(it.id)} onChange={() => setSelectedItemIds((ids) => ids.includes(it.id) ? ids.filter((id) => id !== it.id) : [...ids, it.id])} /><span>{it.legacy_public_id ? <><CopyablePublicId value={it.legacy_public_id} /> · </> : ""}{it.item_name}</span></label>)}</div>}
           {!itemSearch.trim() && <p className="text-sm text-neutral-500">Search by product name, public ID, SKU or brand, then select as many products as you need.</p>}
         </div>
       </div>

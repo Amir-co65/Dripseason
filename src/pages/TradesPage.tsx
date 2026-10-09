@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { TradeKind } from "@/types/database.types";
 import { PublicIdSortSelect } from "@/components/inventory/PublicIdSortSelect";
+import { CopyablePublicId } from "@/components/inventory/CopyablePublicId";
 import { sortByPublicId, type PublicIdSortOrder } from "@/lib/inventorySort";
 
 export function TradesPage() {
@@ -46,7 +47,7 @@ export function TradesPage() {
               </div>
               {t.notes && <p className="mt-2 text-sm text-neutral-600">{t.notes}</p>}
               {t.selected_item_ids.length > 0 && <ul className="mt-3 list-inside list-disc text-sm text-neutral-600">{sortByPublicId(t.selected_item_ids.map((id) => (items ?? []).find((candidate) => candidate.id === id) ?? { id, legacy_public_id: null, item_name: "Linked item" }), (item) => item.legacy_public_id).map((item) => {
-                return <li key={item.id}>{item.legacy_public_id ? `${item.legacy_public_id} · ` : ""}{item.item_name}</li>;
+                return <li key={item.id}>{item.legacy_public_id ? <><CopyablePublicId value={item.legacy_public_id} /> · </> : ""}{item.item_name}</li>;
               })}</ul>}
             </div>
           ))}

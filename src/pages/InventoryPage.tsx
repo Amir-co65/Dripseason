@@ -9,6 +9,7 @@ import { formatMoney } from "@/lib/format";
 import { useCategories, useDeleteInventoryItem, useNonArrivingInventoryItems } from "@/hooks/useInventory";
 import { useItemThumbnails } from "@/hooks/useInventory";
 import { ItemThumbnail } from "@/components/inventory/ItemThumbnail";
+import { CopyablePublicId } from "@/components/inventory/CopyablePublicId";
 import { PublicIdSortSelect } from "@/components/inventory/PublicIdSortSelect";
 import { sortByPublicId, type PublicIdSortOrder } from "@/lib/inventorySort";
 import { useAuth } from "@/context/AuthContext";
@@ -99,7 +100,7 @@ export function InventoryPage() {
             {visibleItems.map((it) => (
               <tr key={it.id} className="hover:bg-neutral-50">
                 <Td>
-                  <div className="flex items-center gap-2"><ItemThumbnail src={thumbnails?.get(it.id)} name={it.item_name} /><div><Link to={`/inventory/${it.id}`} className="font-medium hover:underline">{it.item_name}</Link>{it.legacy_public_id && <div className="text-xs text-neutral-400">{it.legacy_public_id}</div>}</div></div>
+                  <div className="flex items-center gap-2"><ItemThumbnail src={thumbnails?.get(it.id)} name={it.item_name} /><div><Link to={`/inventory/${it.id}`} className="font-medium hover:underline">{it.item_name}</Link>{it.legacy_public_id && <div className="text-xs text-neutral-400"><CopyablePublicId value={it.legacy_public_id} /></div>}</div></div>
                 </Td>
                 <Td>{it.category ?? "—"}</Td>
                 {isAdmin && <Td right>{formatMoney(it.purchase_price)}</Td>}

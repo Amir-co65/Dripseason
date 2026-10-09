@@ -10,6 +10,7 @@ import { useChapters, usePackage } from "@/hooks/useChapters";
 import { useInventoryItems } from "@/hooks/useInventory";
 import { useItemThumbnails } from "@/hooks/useInventory";
 import { ItemThumbnail } from "@/components/inventory/ItemThumbnail";
+import { CopyablePublicId } from "@/components/inventory/CopyablePublicId";
 import { PublicIdSortSelect } from "@/components/inventory/PublicIdSortSelect";
 import { sortByPublicId, type PublicIdSortOrder } from "@/lib/inventorySort";
 import { formatMoney } from "@/lib/format";
@@ -53,7 +54,7 @@ export function PackageDetailPage() {
     </div>
     {items.length === 0 ? <EmptyState title="No items in this package" subtitle="Add the package items here." /> : <><div className="flex justify-end"><PublicIdSortSelect value={sortOrder} onChange={setSortOrder} /></div><TableScroll><thead><tr><Th>Item</Th><Th>Category</Th>{isAdmin && <Th right>Bought</Th>}{isAdmin && <Th right>Sell for</Th>}{isAdmin && <Th right>Sold for</Th>}<Th>Status</Th><Th></Th></tr></thead><tbody>
       {sortedItems.map((item) => <tr key={item.id}>
-        <Td><div className="flex items-center gap-2"><ItemThumbnail src={thumbnails?.get(item.id)} name={item.item_name} /><div><Link to={`/inventory/${item.id}`} className="font-medium hover:underline">{item.item_name}</Link>{item.legacy_public_id && <div className="text-xs text-neutral-400">{item.legacy_public_id}</div>}</div></div></Td>
+        <Td><div className="flex items-center gap-2"><ItemThumbnail src={thumbnails?.get(item.id)} name={item.item_name} /><div><Link to={`/inventory/${item.id}`} className="font-medium hover:underline">{item.item_name}</Link>{item.legacy_public_id && <div className="text-xs text-neutral-400"><CopyablePublicId value={item.legacy_public_id} /></div>}</div></div></Td>
         <Td>{item.category ?? "—"}</Td>{isAdmin && <Td right>{formatMoney(item.purchase_price)}</Td>}{isAdmin && <Td right>{formatMoney(item.asking_price)}</Td>}{isAdmin && <Td right>{formatMoney(item.sold_price)}</Td>}
         <Td><Badge tone={item.status === "sold" ? "good" : "neutral"}>{item.status === "sold" ? "Sold" : "Unsold"}</Badge></Td>
         <Td right>{item.status === "available" ? <Button variant="secondary" onClick={() => setSaleTarget(item)}>Sell</Button> : <Link to={`/inventory/${item.id}`} className="text-sm underline">Open</Link>}</Td>

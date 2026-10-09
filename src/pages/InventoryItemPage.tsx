@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useMarketplaceAccounts, usePostingAccounts } from "@/hooks/useAccounts";
 import { useItemPostings, usePlatforms } from "@/hooks/usePlatforms";
 import { PhotoGallery } from "@/components/inventory/PhotoGallery";
+import { CopyablePublicId } from "@/components/inventory/CopyablePublicId";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Badge, EmptyState, PageHeader } from "@/components/ui/Display";
@@ -38,7 +39,7 @@ export function InventoryItemPage() {
   const backTarget = searchParams.get("returnTo") || (item.package_id ? `/hauls/packages/${item.package_id}` : "/inventory");
 
   return <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
-    <PageHeader title={item.item_name} subtitle={item.legacy_public_id ? `Project26 ID · ${item.legacy_public_id}` : "Inventory item"}
+    <PageHeader title={item.item_name} subtitle={item.legacy_public_id ? <span className="inline-flex items-center gap-1">Project26 ID · <CopyablePublicId value={item.legacy_public_id} /></span> : "Inventory item"}
       actions={<><Button variant="secondary" onClick={() => navigate(backTarget)}>Back</Button><Button onClick={() => navigate(`/inventory/${item.id}/edit?returnTo=${encodeURIComponent(backTarget)}`)}>Edit item</Button></>} />
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.8fr)]">
       <section className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-4 sm:p-6">

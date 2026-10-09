@@ -10,6 +10,7 @@ import { useChapters, usePackages } from "@/hooks/useChapters";
 import { useInventoryItems } from "@/hooks/useInventory";
 import { useItemThumbnails } from "@/hooks/useInventory";
 import { ItemThumbnail } from "@/components/inventory/ItemThumbnail";
+import { CopyablePublicId } from "@/components/inventory/CopyablePublicId";
 import { PublicIdSortSelect } from "@/components/inventory/PublicIdSortSelect";
 import { RecordItemSaleForm } from "@/pages/InventoryItemPage";
 import { ItemTextScanner } from "@/components/inventory/ItemTextScanner";
@@ -70,7 +71,7 @@ export function AvailablePage() {
         const pack = item.package_id ? packageById.get(item.package_id) : null;
         const chapter = pack ? chapterById.get(pack.chapter_id) : null;
         return <tr key={item.id}>
-          <Td><div className="flex items-center gap-2"><ItemThumbnail src={thumbnails?.get(item.id)} name={item.item_name} /><div><Link to={`/inventory/${item.id}`} className="font-medium hover:underline">{item.item_name}</Link>{item.legacy_public_id && <div className="text-xs text-neutral-400">{item.legacy_public_id}</div>}</div></div></Td>
+          <Td><div className="flex items-center gap-2"><ItemThumbnail src={thumbnails?.get(item.id)} name={item.item_name} /><div><Link to={`/inventory/${item.id}`} className="font-medium hover:underline">{item.item_name}</Link>{item.legacy_public_id && <div className="text-xs text-neutral-400"><CopyablePublicId value={item.legacy_public_id} /></div>}</div></div></Td>
           <Td>{item.category ?? "—"}</Td><Td>{pack ? <>{pack.title}{chapter && <span className="text-neutral-400"> · {chapter.name}</span>}</> : "—"}</Td>
           {isAdmin && <Td right>{formatMoney(item.purchase_price)}</Td>}{isAdmin && <Td right>{formatMoney(item.asking_price)}</Td>}
           <Td right><Button onClick={() => setSelling(item)}>Sell</Button></Td>
