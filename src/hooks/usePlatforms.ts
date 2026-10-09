@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/services/platforms";
 import type { Database } from "@/types/database.types";
 
-export function usePlatforms() { return useQuery({ queryKey: ["platforms"], queryFn: api.listPlatforms }); }
+export function usePlatforms(includeInactive = false) { return useQuery({ queryKey: ["platforms", includeInactive ? "all" : "active"], queryFn: () => api.listPlatforms(includeInactive) }); }
 export function useItemPostings(itemIds?: string[]) { return useQuery({ queryKey: ["itemPostings", itemIds?.join(",") ?? "all"], queryFn: () => api.listItemPostings(itemIds) }); }
 export function useCreatePlatform() { const qc = useQueryClient(); return useMutation({ mutationFn: api.createPlatform, onSuccess: () => qc.invalidateQueries({ queryKey: ["platforms"] }) }); }
 export function useSetItemPosting() { const qc = useQueryClient(); return useMutation({ mutationFn: api.setItemPosting, onSuccess: () => qc.invalidateQueries({ queryKey: ["itemPostings"] }) }); }

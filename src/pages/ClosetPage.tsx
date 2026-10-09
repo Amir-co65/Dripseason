@@ -3,7 +3,7 @@ import { PageHeader, EmptyState } from "@/components/ui/Display";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { Field, Input, Select } from "@/components/ui/Field";
+import { Field, Input } from "@/components/ui/Field";
 import {
   useAssignItemToSection,
   useClosetSections,
@@ -105,7 +105,8 @@ function SectionDetailModal({ sectionId, sectionName, isAdmin, sortOrder, onSort
   const remove = useRemoveItemFromSection();
   const rename = useUpdateClosetSection();
   const deleteSection = useDeleteClosetSection();
-  const [itemToAdd, setItemToAdd] = useState("");
+  const [itemSearch, setItemSearch] = useState("");
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(sectionName);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -140,25 +141,10 @@ function SectionDetailModal({ sectionId, sectionName, isAdmin, sortOrder, onSort
           )}
         </div>
 
-        <div className="flex gap-2">
-          <Select value={itemToAdd} onChange={(e) => setItemToAdd(e.target.value)} className="flex-1">
-            <option value="">Add an item to this section...</option>
-            {sortByPublicId(available ?? [], (it) => it.legacy_public_id, sortOrder).map((it) => (
-              <option key={it.id} value={it.id}>
-                {it.legacy_public_id ? `${it.legacy_public_id} · ` : ""}{it.item_name}
-              </option>
-            ))}
-          </Select>
-          <Button
-            type="button"
-            disabled={!itemToAdd}
-            onClick={() => {
-              if (itemToAdd) assign.mutate({ sectionId, inventoryItemId: itemToAdd });
-              setItemToAdd("");
-            }}
-          >
-            Add
-          </Button>
+        <div className="rounded-lg border border-neutral-200 p-3">
+          <div className="mb-2 flex flex-wrap gap-2"><Input type="search" value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder="Type to find products to add…" className="flex-1" /><Button type="button" disabled={!selectedItemIds.length || assign.isPending} onClick={() => { selectedItemIds.forEach((inventoryItemId) => assign.mutate({ sectionId, inventoryItemId })); setSelectedItemIds([]); setItemSearch(""); }}>Add {selectedItemIds.length || ""} selected</Button></div>
+          {itemSearch.trim() && <div className="max-h-48 overflow-y-auto rounded border border-neutral-100">{sortByPublicId((available ?? []).filter((it) => [it.item_name, it.legacy_public_id, it.sku, it.brand].some((value) => value?.toLowerCase().includes(itemSearch.trim().toLowerCase()))).slice(0, 100), (it) => it.legacy_public_id, sortOrder).map((it) => <label key={it.id} className="flex cursor-pointer items-center gap-2 border-b border-neutral-100 p-2 text-sm last:border-0"><input type="checkbox" checked={selectedItemIds.includes(it.id)} onChange={() => setSelectedItemIds((ids) => ids.includes(it.id) ? ids.filter((id) => id !== it.id) : [...ids, it.id])} /><span>{it.legacy_public_id ? `${it.legacy_public_id} · ` : ""}{it.item_name}</span></label>)}</div>}
+          {!itemSearch.trim() && <p className="text-sm text-neutral-500">Search by product name, public ID, SKU or brand, then select as many products as you need.</p>}
         </div>
       </div>
       {confirmDelete && <ConfirmDialog open title="Delete section" message="Delete this section and remove its item placements?" confirmLabel="Delete" danger onCancel={() => setConfirmDelete(false)} onConfirm={async () => { await deleteSection.mutateAsync(sectionId); onDeleted(); }} />}

@@ -9,14 +9,13 @@ import { useAccountOwners, useCreateMarketplaceAccount, useCreatePostingAccount,
 import { useAuth } from "@/context/AuthContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { Database, Platform } from "@/types/database.types";
-import { useCreatePlatform, usePlatforms } from "@/hooks/usePlatforms";
+import { useCreatePlatform, usePlatforms, useUpdatePlatform } from "@/hooks/usePlatforms";
 
 type Account = Database["public"]["Tables"]["marketplace_accounts"]["Row"];
 
 export function AccountsPage() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
-  const { data: platforms = [] } = usePlatforms();
   const { data: accounts, isLoading } = useMarketplaceAccounts();
   const { data: postingAccounts } = usePostingAccounts();
   const [adding, setAdding] = useState(false);
@@ -78,7 +77,7 @@ export function AccountsPage() {
         <PageHeader title="Posting accounts" subtitle="Numbered accounts used to track where each item is listed." actions={<Button onClick={() => setPostingForm(true)}>+ Posting account</Button>} />
         {!postingAccounts?.length ? <p className="text-sm text-neutral-400">No posting accounts yet.</p> : <TableScroll><thead><tr><Th>Platform</Th><Th>Number</Th><Th>Account name</Th><Th></Th></tr></thead><tbody>{postingAccounts.map((account) => <tr key={account.id}><Td className="capitalize">{account.platform}</Td><Td>{account.account_number}</Td><Td>{account.display_name}</Td><Td right><Button variant="ghost" onClick={() => setEditingPosting(account)}>Edit</Button><Button variant="ghost" onClick={() => setToDeletePosting(account.id)}>Delete</Button></Td></tr>)}</tbody></TableScroll>}
       </section>
-      {isAdmin && <PlatformManagement platforms={platforms} />}
+      {isAdmin && <PlatformManagement />}
 
       {adding && <AccountFormModal onClose={() => setAdding(false)} />}
       {editing && <AccountFormModal account={editing} onClose={() => setEditing(null)} />}
@@ -208,7 +207,7 @@ function AccountFormModal({ account, onClose }: { account?: Account; onClose: ()
   );
 }
 
-function PlatformManagement({ platforms }: { platforms: { slug: string; name: string }[] }) {
-  const create = useCreatePlatform(); const [name, setName] = useState(""); const [error, setError] = useState<string | null>(null);
-  return <section className="rounded-xl border border-neutral-200 bg-white p-4"><h2 className="font-semibold">Platforms</h2><p className="mb-3 text-sm text-neutral-500">New platforms appear automatically in Posting, Accounts and Sales.</p><div className="mb-3 text-sm">{platforms.map((p) => p.name).join(" · ")}</div><form className="flex gap-2" onSubmit={async (e) => { e.preventDefault(); const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); if (!slug) return; try { await create.mutateAsync({ slug, name: name.trim() }); setName(""); } catch (err) { setError(err instanceof Error ? err.message : "Could not add platform."); } }}><Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Depop"/><Button disabled={create.isPending}>Add platform</Button></form>{error && <p className="mt-2 text-sm text-red-600">{error}</p>}</section>;
+function PlatformManagement() {
+  const { data: platforms = [] } = usePlatforms(true); const create = useCreatePlatform(); const update = useUpdatePlatform(); const [name, setName] = useState(""); const [editing, setEditing] = useState<string | null>(null); const [editName, setEditName] = useState(""); const [error, setError] = useState<string | null>(null);
+  return <section className="rounded-xl border border-neutral-200 bg-white p-4"><h2 className="font-semibold">Apps</h2><p className="mb-3 text-sm text-neutral-500">Only active apps appear in Posting, Accounts and Sales. Vinted and Plick are kept active; you can add, rename or hide any other app here.</p><div className="mb-4 flex flex-col gap-2">{platforms.map((platform) => <div key={platform.slug} className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-100 p-2"><div className="min-w-32 flex-1">{editing === platform.slug ? <Input value={editName} onChange={(e) => setEditName(e.target.value)} /> : <><span className="font-medium">{platform.name}</span><span className="ml-2 text-xs text-neutral-400">{platform.is_active ? "Active" : "Hidden"}</span></>}</div>{editing === platform.slug ? <><Button variant="secondary" onClick={async () => { if (editName.trim()) await update.mutateAsync({ slug: platform.slug, input: { name: editName.trim() } }); setEditing(null); }}>Save</Button><Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button></> : <><Button variant="ghost" onClick={() => { setEditing(platform.slug); setEditName(platform.name); }}>Edit</Button><Button variant="ghost" onClick={() => void update.mutateAsync({ slug: platform.slug, input: { is_active: !platform.is_active } })}>{platform.is_active ? "Hide" : "Show"}</Button></>}</div>)}</div><form className="flex gap-2" onSubmit={async (e) => { e.preventDefault(); const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); if (!slug) return; try { await create.mutateAsync({ slug, name: name.trim() }); setName(""); } catch (err) { setError(err instanceof Error ? err.message : "Could not add app."); } }}><Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Add an app, e.g. Depop"/><Button disabled={create.isPending}>Add app</Button></form>{error && <p className="mt-2 text-sm text-red-600">{error}</p>}</section>;
 }

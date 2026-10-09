@@ -1,8 +1,10 @@
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database.types";
 
-export async function listPlatforms() {
-  const { data, error } = await supabase.from("platforms").select("*").eq("is_active", true).order("name");
+export async function listPlatforms(includeInactive = false) {
+  let query = supabase.from("platforms").select("*").order("name");
+  if (!includeInactive) query = query.eq("is_active", true);
+  const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
 }
