@@ -30,7 +30,6 @@ export function HaulsPage() {
   const { data: allPackages = [] } = usePackages();
   const itemCounts = new Map<string, number>();
   for (const item of inventory ?? []) if (item.package_id) itemCounts.set(item.package_id, (itemCounts.get(item.package_id) ?? 0) + 1);
-  const [openChapter, setOpenChapter] = useState<string | null>(null);
   const [addingChapter, setAddingChapter] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get("search") ?? "";
@@ -68,7 +67,7 @@ export function HaulsPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {chapters.map((c) => (
-            <ChapterRow key={c.id} chapter={c} chapters={chapters ?? []} open={openChapter === c.id} onToggle={() => setOpenChapter(openChapter === c.id ? null : c.id)} isAdmin={isAdmin} itemCounts={itemCounts} />
+            <ChapterRow key={c.id} chapter={c} chapters={chapters ?? []} packages={allPackages.filter((pack) => pack.chapter_id === c.id)} isAdmin={isAdmin} itemCounts={itemCounts} />
           ))}
         </div>
       )}
@@ -78,8 +77,7 @@ export function HaulsPage() {
   );
 }
 
-function ChapterRow({ chapter, chapters, open, onToggle, isAdmin, itemCounts }: { chapter: Chapter; chapters: Chapter[]; open: boolean; onToggle: () => void; isAdmin: boolean; itemCounts: Map<string, number> }) {
-  const { data: packages } = usePackages(open ? chapter.id : undefined);
+function ChapterRow({ chapter, chapters, packages, isAdmin, itemCounts }: { chapter: Chapter; chapters: Chapter[]; packages: Package[]; isAdmin: boolean; itemCounts: Map<string, number> }) {
   const [addingPackage, setAddingPackage] = useState(false);
   const [editingPackage, setEditingPackage] = useState<Package | null>(null);
   const [deletingPackage, setDeletingPackage] = useState<string | null>(null);
@@ -90,13 +88,12 @@ function ChapterRow({ chapter, chapters, open, onToggle, isAdmin, itemCounts }: 
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white">
-      <button onClick={onToggle} className="flex w-full flex-wrap items-center gap-3 px-4 py-3 text-left hover:bg-neutral-50">
+      <div className="flex w-full flex-wrap items-center gap-3 border-b border-neutral-100 px-4 py-3 text-left">
         <span className="font-semibold">{chapter.name}</span>
         {chapter.date_range && <span className="text-sm text-neutral-400">{chapter.date_range}</span>}
-      </button>
-      {isAdmin && <div className="flex justify-end gap-1 px-3 pb-2"><Button variant="ghost" onClick={() => setEditingChapter(true)}>Edit</Button><Button variant="ghost" onClick={() => setDeletingChapter(true)}>Delete</Button></div>}
+        {isAdmin && <div className="ml-auto flex gap-1"><Button variant="ghost" onClick={() => setEditingChapter(true)}>Edit</Button><Button variant="ghost" onClick={() => setDeletingChapter(true)}>Delete</Button></div>}
+      </div>
 
-      {open && (
         <div className="border-t border-neutral-100 p-3">
           {isAdmin && (
             <div className="mb-2 flex justify-end">
@@ -139,8 +136,6 @@ function ChapterRow({ chapter, chapters, open, onToggle, isAdmin, itemCounts }: 
             </TableScroll>
           )}
         </div>
-      )}
-
       {addingPackage && <PackageFormModal chapterId={chapter.id} onClose={() => setAddingPackage(false)} />}
       {editingPackage && <PackageFormModal chapterId={chapter.id} packageItem={editingPackage} onClose={() => setEditingPackage(null)} />}
       {deletingPackage && <ConfirmDialog open title="Delete package" message="Delete this package? Its inventory items will stay in inventory without a package link." confirmLabel="Delete" danger onCancel={() => setDeletingPackage(null)} onConfirm={async () => { await deletePackage.mutateAsync(deletingPackage); setDeletingPackage(null); }} />}
