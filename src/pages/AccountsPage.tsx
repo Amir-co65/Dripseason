@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PageHeader, Badge, EmptyState } from "@/components/ui/Display";
+import { PageHeader, EmptyState } from "@/components/ui/Display";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Field, Input, Select } from "@/components/ui/Field";
@@ -31,7 +31,7 @@ export function AccountsPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Accounts"
-        subtitle={`${accounts?.length ?? 0} marketplace accounts`}
+        subtitle={`${accounts?.filter((account) => !account.banned).length ?? 0} active · ${accounts?.filter((account) => account.banned).length ?? 0} banned`}
         actions={<Button onClick={() => setAdding(true)}>+ Account</Button>}
       />
 
@@ -40,37 +40,16 @@ export function AccountsPage() {
       ) : !accounts || accounts.length === 0 ? (
         <EmptyState title="No accounts yet" />
       ) : (
-        <TableScroll>
-          <thead>
-            <tr>
-              <Th>#</Th>
-              <Th>Account</Th>
-              <Th>Platform</Th>
-              <Th>Email / username</Th>
-              {isAdmin && <Th>Password</Th>}
-              <Th right>Balance</Th>
-              <Th>Status</Th>
-              <Th></Th>
-            </tr>
-          </thead>
-          <tbody>
-            {accounts.map((a) => (
-              <tr key={a.id}>
-                <Td>{a.posting_account_number ?? "—"}</Td>
-                <Td className="font-medium">{a.label}</Td>
-                <Td className="capitalize">{a.platform}</Td>
-                <Td>
-                  {a.email ?? "—"}
-                  {a.username && <div className="text-xs text-neutral-400">{a.username}</div>}
-                </Td>
-                {isAdmin && <Td>{a.password ?? "—"}</Td>}
-                <Td right>{formatMoney(a.balance)}</Td>
-                <Td>{a.banned ? <Badge tone="bad">Banned</Badge> : <Badge tone="good">Active</Badge>}</Td>
-                <Td right><Button variant="ghost" onClick={() => setEditing(a as Account)}>Edit</Button><Button variant="ghost" onClick={() => setToDelete(a.id)}>Delete</Button></Td>
-              </tr>
-            ))}
-          </tbody>
-        </TableScroll>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <section className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-4">
+            <h2 className="font-semibold">Active accounts</h2>
+            <AccountTable accounts={accounts.filter((account) => !account.banned)} isAdmin={isAdmin} onEdit={setEditing} onDelete={setToDelete} />
+          </section>
+          <section className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-4">
+            <h2 className="font-semibold">Banned accounts</h2>
+            <AccountTable accounts={accounts.filter((account) => account.banned)} isAdmin={isAdmin} onEdit={setEditing} onDelete={setToDelete} />
+          </section>
+        </div>
       )}
 
       <section className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-4 sm:p-5">
@@ -101,6 +80,22 @@ export function AccountsPage() {
       )}
     </div>
   );
+}
+
+function AccountTable({ accounts, isAdmin, onEdit, onDelete }: { accounts: Array<Pick<Account, "id" | "posting_account_number" | "label" | "platform" | "email" | "username" | "password" | "balance">>; isAdmin: boolean; onEdit: (account: any) => void; onDelete: (id: string) => void }) {
+  if (accounts.length === 0) return <p className="text-sm text-neutral-400">No accounts in this section.</p>;
+  return <TableScroll>
+    <thead><tr><Th>#</Th><Th>Account</Th><Th>Platform</Th><Th>Email / username</Th>{isAdmin && <Th>Password</Th>}<Th right>Balance</Th><Th></Th></tr></thead>
+    <tbody>{accounts.map((account) => <tr key={account.id}>
+      <Td>{account.posting_account_number ?? "—"}</Td>
+      <Td className="font-medium">{account.label}</Td>
+      <Td className="capitalize">{account.platform}</Td>
+      <Td>{account.email ?? "—"}{account.username && <div className="text-xs text-neutral-400">{account.username}</div>}</Td>
+      {isAdmin && <Td>{account.password ?? "—"}</Td>}
+      <Td right>{formatMoney(account.balance)}</Td>
+      <Td right><Button variant="ghost" onClick={() => onEdit(account)}>Edit</Button><Button variant="ghost" onClick={() => onDelete(account.id)}>Delete</Button></Td>
+    </tr>)}</tbody>
+  </TableScroll>;
 }
 
 function PostingAccountForm({ account, onClose }: { account?: { id: string; platform: Platform; account_number: number; display_name: string }; onClose: () => void }) {
