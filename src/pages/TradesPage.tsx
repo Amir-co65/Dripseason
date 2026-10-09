@@ -5,7 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { formatDate } from "@/lib/format";
 import { useCreateTrade, useDeleteTrade, useReturnSale, useTrades } from "@/hooks/useTrades";
-import { useInventoryItems } from "@/hooks/useInventory";
+import { useNonArrivingInventoryItems } from "@/hooks/useInventory";
 import { useSales } from "@/hooks/useSales";
 import { useAuth } from "@/context/AuthContext";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -15,7 +15,7 @@ import { sortByPublicId, type PublicIdSortOrder } from "@/lib/inventorySort";
 
 export function TradesPage() {
   const { data: trades, isLoading } = useTrades();
-  const { data: items } = useInventoryItems();
+  const { data: items } = useNonArrivingInventoryItems();
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
   const [adding, setAdding] = useState(false);
@@ -61,13 +61,15 @@ export function TradesPage() {
 
 function TradeFormModal({ onClose }: { onClose: () => void }) {
   const create = useCreateTrade();
-  const { data: inventory } = useInventoryItems();
+  const { data: inventory } = useNonArrivingInventoryItems();
   const [receivedName, setReceivedName] = useState("");
   const [kind, setKind] = useState<TradeKind>("standard-trade");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const { data: sales = [] } = useSales();
+  const inventoryIds = new Set((inventory ?? []).map((item) => item.id));
+  const eligibleSales = sales.filter((sale: any) => inventoryIds.has(sale.inventory_item_id));
   const returnSale = useReturnSale();
   const [saleId, setSaleId] = useState("");
   const [search, setSearch] = useState("");
@@ -103,7 +105,7 @@ function TradeFormModal({ onClose }: { onClose: () => void }) {
         <Field label="Date">
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
-        {kind === "return-exchange" ? <Field label="Sold item being returned"><Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, ID or SKU…" /><div className="mt-2"><PublicIdSortSelect value={sortOrder} onChange={setSortOrder} /></div><div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-neutral-200">{sortByPublicId(sales.filter((sale: any) => { const q = search.toLowerCase(); const item = sale.inventory_item; return !q || [item?.item_name,item?.legacy_public_id,item?.sku].some((v) => v?.toLowerCase().includes(q)); }), (sale: any) => sale.inventory_item?.legacy_public_id, sortOrder).slice(0,80).map((sale: any) => <label key={sale.id} className="flex cursor-pointer gap-2 border-b border-neutral-100 p-2 text-sm"><input type="radio" name="returned-sale" checked={saleId === sale.id} onChange={() => setSaleId(sale.id)} /><span>{sale.inventory_item?.legacy_public_id ? `${sale.inventory_item.legacy_public_id} · ` : ""}{sale.inventory_item?.item_name}</span></label>)}</div></Field> : <Field label="Items involved">
+        {kind === "return-exchange" ? <Field label="Sold item being returned"><Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, ID or SKU…" /><div className="mt-2"><PublicIdSortSelect value={sortOrder} onChange={setSortOrder} /></div><div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-neutral-200">{sortByPublicId(eligibleSales.filter((sale: any) => { const q = search.toLowerCase(); const item = sale.inventory_item; return !q || [item?.item_name,item?.legacy_public_id,item?.sku].some((v) => v?.toLowerCase().includes(q)); }), (sale: any) => sale.inventory_item?.legacy_public_id, sortOrder).slice(0,80).map((sale: any) => <label key={sale.id} className="flex cursor-pointer gap-2 border-b border-neutral-100 p-2 text-sm"><input type="radio" name="returned-sale" checked={saleId === sale.id} onChange={() => setSaleId(sale.id)} /><span>{sale.inventory_item?.legacy_public_id ? `${sale.inventory_item.legacy_public_id} · ` : ""}{sale.inventory_item?.item_name}</span></label>)}</div></Field> : <Field label="Items involved">
           <div className="max-h-48 overflow-y-auto rounded-lg border border-neutral-200 p-2">
             <div className="mb-2"><PublicIdSortSelect value={sortOrder} onChange={setSortOrder} /></div>
             {sortByPublicId((inventory ?? []).filter((item) => { const q = search.toLowerCase(); return !q || [item.item_name,item.legacy_public_id,item.sku,item.brand].some((v) => v?.toLowerCase().includes(q)); }), (item) => item.legacy_public_id, sortOrder).map((item) => <label key={item.id} className="flex cursor-pointer items-center gap-2 border-b border-neutral-100 py-2 text-sm last:border-0">

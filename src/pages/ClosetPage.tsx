@@ -13,7 +13,7 @@ import {
   useRemoveItemFromSection,
   useUpdateClosetSection,
 } from "@/hooks/useCloset";
-import { useInventoryItems } from "@/hooks/useInventory";
+import { useNonArrivingInventoryItems } from "@/hooks/useInventory";
 import { useAuth } from "@/context/AuthContext";
 import { useItemThumbnails } from "@/hooks/useInventory";
 import { ItemThumbnail } from "@/components/inventory/ItemThumbnail";
@@ -28,7 +28,7 @@ export function ClosetPage() {
   const [open, setOpen] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<PublicIdSortOrder>("oldest");
-  const { data: allItems = [] } = useInventoryItems();
+  const { data: allItems = [] } = useNonArrivingInventoryItems();
   const matches = sortByPublicId(allItems.filter((item) => { const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean); return terms.length > 0 && terms.some((term) => [item.item_name,item.sku,item.legacy_public_id,item.brand].some((value) => value?.toLowerCase().includes(term))); }), (item) => item.legacy_public_id, sortOrder).slice(0,100);
   const { data: thumbnails } = useItemThumbnails(matches.map((item) => item.id));
 
@@ -100,7 +100,7 @@ function SectionFormModal({ onClose }: { onClose: () => void }) {
 
 function SectionDetailModal({ sectionId, sectionName, isAdmin, sortOrder, onSortOrderChange, onClose, onDeleted }: { sectionId: string; sectionName: string; isAdmin: boolean; sortOrder: PublicIdSortOrder; onSortOrderChange: (value: PublicIdSortOrder) => void; onClose: () => void; onDeleted: () => void }) {
   const { data: placed } = useItemsInSection(sectionId);
-  const { data: available } = useInventoryItems({});
+  const { data: available } = useNonArrivingInventoryItems({});
   const assign = useAssignItemToSection();
   const remove = useRemoveItemFromSection();
   const rename = useUpdateClosetSection();
@@ -110,6 +110,7 @@ function SectionDetailModal({ sectionId, sectionName, isAdmin, sortOrder, onSort
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(sectionName);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const visiblePlaced = (placed ?? []).filter((placement: any) => (available ?? []).some((item) => item.id === placement.inventory_item_id));
 
   return (
     <Modal open onClose={onClose} title="Section contents" wide>
@@ -127,10 +128,10 @@ function SectionDetailModal({ sectionId, sectionName, isAdmin, sortOrder, onSort
           <Button type="submit" disabled={rename.isPending}>{rename.isPending ? "Saving…" : "Save"}</Button>
         </form>}
         <div className="max-h-64 overflow-y-auto rounded-lg border border-neutral-200">
-          {!placed || placed.length === 0 ? (
+          {!visiblePlaced.length ? (
             <p className="p-3 text-sm text-neutral-400">Nothing placed here yet.</p>
           ) : (
-            [...placed].sort((a: any, b: any) => comparePublicIds(a.inventory_items?.legacy_public_id, b.inventory_items?.legacy_public_id, sortOrder)).map((p: any) => (
+            [...visiblePlaced].sort((a: any, b: any) => comparePublicIds(a.inventory_items?.legacy_public_id, b.inventory_items?.legacy_public_id, sortOrder)).map((p: any) => (
               <div key={p.id} className="flex items-center justify-between border-b border-neutral-100 px-3 py-2 last:border-0">
                 <span className="text-sm">{p.inventory_items?.legacy_public_id ? `${p.inventory_items.legacy_public_id} · ` : ""}{p.inventory_items?.item_name ?? "—"}</span>
                 <button className="text-xs text-neutral-400 hover:text-red-600" onClick={() => remove.mutate(p.id)}>

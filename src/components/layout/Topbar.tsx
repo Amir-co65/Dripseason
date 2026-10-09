@@ -26,7 +26,7 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
       <div className="hidden md:block" />
 
       <div className="flex items-center gap-2 sm:gap-3">
-        <Button variant="secondary" disabled={undo.isPending} onClick={async () => { setUndoError(null); try { await undo.mutateAsync(); } catch (error) { setUndoError(error instanceof Error ? error.message : "Nothing to undo."); } }}>Undo</Button>
+        <Button variant="secondary" disabled={undo.isPending || undo.count === 0} onClick={async () => { setUndoError(null); try { await undo.mutateAsync(); } catch (error) { setUndoError(error instanceof Error ? error.message : "Nothing to undo."); } }}>Undo{undo.count > 0 ? ` · ${undo.count}` : ""}</Button>
         {profile && (
           <span className="hidden text-sm text-neutral-600 sm:inline">
             {profile.full_name ?? profile.email}{" "}

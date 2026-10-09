@@ -10,6 +10,7 @@ import { Badge, EmptyState, PageHeader } from "@/components/ui/Display";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { useDeleteInventoryItem, useInventoryItem } from "@/hooks/useInventory";
 import { useRecordSale, useSales } from "@/hooks/useSales";
+import { usePackage } from "@/hooks/useChapters";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { Database, InventoryStatus } from "@/types/database.types";
 
@@ -23,12 +24,15 @@ export function InventoryItemPage() {
   const isAdmin = profile?.role === "admin";
   const { data, isLoading, isError } = useInventoryItem(itemId);
   const item = data as Item | undefined;
+  const { data: itemPackage, isLoading: packageLoading, isError: packageError } = usePackage(item?.package_id ?? undefined);
   const { data: sales } = useSales();
   const remove = useDeleteInventoryItem();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  if (isLoading) return <p className="text-sm text-neutral-500">Loading item…</p>;
+  if (isLoading || (item?.package_id && packageLoading)) return <p className="text-sm text-neutral-500">Loading item…</p>;
   if (isError || !item) return <EmptyState title="Item not found" subtitle="It may have been removed or you may not have access." />;
+  if (item.package_id && packageError) return <EmptyState title="Arrival status unavailable" subtitle="Open this item from its package in Hauls." />;
+  if (itemPackage?.arrival_status === "arriving") return <EmptyState title="This item has not arrived yet" subtitle="You can view it from its package in Hauls." />;
   const itemSales = (sales ?? []).filter((sale) => sale.inventory_item_id === item.id);
 
   return <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">

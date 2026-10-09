@@ -3,12 +3,27 @@ import * as inventoryApi from "@/services/inventory";
 import * as mediaApi from "@/services/media";
 import type { Database } from "@/types/database.types";
 import type { ListInventoryFilters } from "@/services/inventory";
+import { usePackages } from "@/hooks/useChapters";
 
 export function useInventoryItems(filters: ListInventoryFilters = {}) {
   return useQuery({
     queryKey: ["inventoryItems", filters],
     queryFn: () => inventoryApi.listInventoryItems(filters),
   });
+}
+
+/** Inventory for operational pages, excluding items whose package is still inbound. */
+export function useNonArrivingInventoryItems(filters: ListInventoryFilters = {}) {
+  const inventory = useInventoryItems(filters);
+  const packages = usePackages();
+  const arrivingPackageIds = new Set((packages.data ?? []).filter((pack) => pack.arrival_status === "arriving").map((pack) => pack.id));
+  return {
+    ...inventory,
+    data: inventory.data?.filter((item) => !packages.isError && (!item.package_id || !arrivingPackageIds.has(item.package_id))),
+    isLoading: inventory.isLoading || packages.isLoading,
+    isError: inventory.isError || packages.isError,
+    error: inventory.error ?? packages.error,
+  };
 }
 
 export function useInventoryItem(id: string | undefined) {

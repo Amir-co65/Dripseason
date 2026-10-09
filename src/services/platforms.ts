@@ -34,3 +34,14 @@ export async function setItemPosting(input: Database["public"]["Tables"]["item_p
   if (error) throw error;
   return data;
 }
+
+export async function setItemPostingsBulk(input: { inventory_item_ids: string[]; platform_slug: string; status: Database["public"]["Tables"]["item_postings"]["Insert"]["status"]; posting_account_id: string | null }) {
+  const { data, error } = await supabase.rpc("set_item_postings_bulk", {
+    p_inventory_item_ids: input.inventory_item_ids,
+    p_platform_slug: input.platform_slug,
+    p_status: input.status ?? "needs_posting",
+    p_posting_account_id: input.posting_account_id,
+  });
+  if (error) throw error;
+  return data;
+}

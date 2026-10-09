@@ -6,6 +6,7 @@ import { EmptyState, PageHeader } from "@/components/ui/Display";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { PhotoGallery } from "@/components/inventory/PhotoGallery";
 import { useCreateInventoryItem, useInventoryItem, useUpdateInventoryItem } from "@/hooks/useInventory";
+import { usePackage } from "@/hooks/useChapters";
 import type { Database } from "@/types/database.types";
 
 type Item = Database["public"]["Tables"]["inventory_items"]["Row"];
@@ -28,9 +29,10 @@ export function InventoryItemFormPage() {
   const isAdmin = profile?.role === "admin";
   const editing = Boolean(itemId);
   const itemQuery = useInventoryItem(itemId);
+  const item = itemQuery.data as Item | undefined;
+  const { data: itemPackage, isLoading: packageLoading, isError: packageError } = usePackage(item?.package_id ?? undefined);
   const create = useCreateInventoryItem();
   const update = useUpdateInventoryItem();
-  const item = itemQuery.data as Item | undefined;
   const [form, setForm] = useState({ item_name: "", category: "", brand: "", size: "", color: "", description: "", sku: "", purchase_price: "", asking_price: "0", notes: "" });
   const [error, setError] = useState<string | null>(null);
 
@@ -76,8 +78,10 @@ export function InventoryItemFormPage() {
     }
   }
 
-  if (editing && itemQuery.isLoading) return <p className="text-sm text-neutral-500">Loading item…</p>;
+  if (editing && (itemQuery.isLoading || (item?.package_id && packageLoading))) return <p className="text-sm text-neutral-500">Loading item…</p>;
   if (editing && (itemQuery.isError || !item)) return <EmptyState title="Item not found" subtitle="It may have been removed or you may not have access." />;
+  if (editing && item?.package_id && packageError) return <EmptyState title="Arrival status unavailable" subtitle="Open this item from its package in Hauls." />;
+  if (editing && itemPackage?.arrival_status === "arriving") return <EmptyState title="This item has not arrived yet" subtitle="Edit it from its package in Hauls after it arrives." />;
   const saving = create.isPending || update.isPending;
 
   return <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">

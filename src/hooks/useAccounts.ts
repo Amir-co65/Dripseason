@@ -22,7 +22,10 @@ export function useUpdateMarketplaceAccount() {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: Database["public"]["Tables"]["marketplace_accounts"]["Update"] }) =>
       accountsApi.updateMarketplaceAccount(id, input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["marketplaceAccounts"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["marketplaceAccounts"] });
+      qc.invalidateQueries({ queryKey: ["itemPostings"] });
+    },
   });
 }
 

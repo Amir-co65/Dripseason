@@ -473,6 +473,12 @@ export interface Database {
         Update: Partial<{ status: PostingStatus; posting_account_id: string | null }>;
         Relationships: [];
       };
+      undo_events: {
+        Row: { id: string; user_id: string | null; table_name: string; operation: "INSERT" | "UPDATE" | "DELETE"; row_before: Record<string, unknown> | null; row_after: Record<string, unknown> | null; created_at: string; expires_at: string; undone_at: string | null; transaction_id: number | null; event_order: number };
+        Insert: { id?: string; user_id?: string | null; table_name: string; operation: "INSERT" | "UPDATE" | "DELETE"; row_before?: Record<string, unknown> | null; row_after?: Record<string, unknown> | null; created_at?: string; expires_at?: string; undone_at?: string | null; transaction_id?: number | null; event_order?: number };
+        Update: Partial<{ undone_at: string | null }>;
+        Relationships: [];
+      };
     };
 
     Views: {
@@ -510,6 +516,8 @@ export interface Database {
       delete_chapter_safely: { Args: { p_chapter_id: string; p_move_packages_to?: string | null }; Returns: undefined };
       return_sale: { Args: { p_sale_id: string; p_received_name: string; p_date?: string }; Returns: string };
       undo_latest_action: { Args: Record<string, never>; Returns: string };
+      undo_available_count: { Args: Record<string, never>; Returns: number };
+      set_item_postings_bulk: { Args: { p_inventory_item_ids: string[]; p_platform_slug: string; p_status: PostingStatus; p_posting_account_id: string | null }; Returns: number };
       account_owners: { Args: Record<string, never>; Returns: { id: string; full_name: string }[] };
     };
   };

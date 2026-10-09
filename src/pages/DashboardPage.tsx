@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { EmptyState, StatCard } from "@/components/ui/Display";
 import { useChapters, usePackages } from "@/hooks/useChapters";
-import { useInventoryItems } from "@/hooks/useInventory";
+import { useNonArrivingInventoryItems } from "@/hooks/useInventory";
 import { useSales } from "@/hooks/useSales";
 import { useWalletBalances } from "@/hooks/useWallet";
 import { formatMoney } from "@/lib/format";
@@ -9,14 +9,17 @@ import { formatMoney } from "@/lib/format";
 export function DashboardPage() {
   const { data: chapters = [] } = useChapters();
   const { data: packages = [] } = usePackages();
-  const { data: items = [] } = useInventoryItems();
+  const visiblePackages = packages.filter((pack) => pack.arrival_status !== "arriving");
+  const { data: items = [] } = useNonArrivingInventoryItems();
   const { data: sales = [] } = useSales();
+  const visibleItemIds = new Set(items.map((item) => item.id));
+  const visibleSales = sales.filter((sale) => visibleItemIds.has(sale.inventory_item_id));
   const { data: balances = [] } = useWalletBalances();
-  if (!chapters.length && !sales.length && !items.length) return <EmptyState title="Welcome to Dripseason-Office" subtitle="Your workspace is empty. Import your backup to bring everything in, or start adding hauls, sales and accounts by hand." />;
+  if (!chapters.length && !visibleSales.length && !items.length) return <EmptyState title="Welcome to Dripseason-Office" subtitle="Your workspace is empty. Import your backup to bring everything in, or start adding hauls, sales and accounts by hand." />;
 
   const itemById = new Map(items.map((item) => [item.id, item]));
-  const moneySpent = items.reduce((total, item) => total + Number(item.purchase_price ?? 0), 0) + packages.reduce((total, item) => total + Number(item.shipping_cost ?? 0), 0);
-  const moneyWon = sales.reduce((total, sale) => total + Number(sale.sold_price ?? 0), 0);
+  const moneySpent = items.reduce((total, item) => total + Number(item.purchase_price ?? 0), 0) + visiblePackages.reduce((total, item) => total + Number(item.shipping_cost ?? 0), 0);
+  const moneyWon = visibleSales.reduce((total, sale) => total + Number(sale.sold_price ?? 0), 0);
   const estimatedMoneyWin = items.reduce((total, item) => total + Number(item.asking_price ?? 0), 0);
   const profit = moneyWon - moneySpent;
   const stockValue = items.filter((item) => item.status === "available").reduce((total, item) => total + Number(item.asking_price ?? 0), 0);
@@ -24,7 +27,7 @@ export function DashboardPage() {
   const months = new Map<string, number>();
   const places = new Map<string, number>();
   const categories = new Map<string, number>();
-  for (const sale of sales) {
+  for (const sale of visibleSales) {
     const price = Number(sale.sold_price ?? 0);
     if (sale.sale_date) months.set(sale.sale_date.slice(0, 7), (months.get(sale.sale_date.slice(0, 7)) ?? 0) + price);
     const place = sale.sale_platform || "Unknown";
@@ -33,7 +36,7 @@ export function DashboardPage() {
     categories.set(category, (categories.get(category) ?? 0) + price);
   }
   const chapterProfit = chapters.map((chapter) => {
-    const chapterPackages = packages.filter((item) => item.chapter_id === chapter.id);
+    const chapterPackages = visiblePackages.filter((item) => item.chapter_id === chapter.id);
     const ids = new Set(chapterPackages.map((item) => item.id));
     const chapterItems = items.filter((item) => item.package_id && ids.has(item.package_id));
     const spent = chapterItems.reduce((total, item) => total + Number(item.purchase_price ?? 0), 0) + chapterPackages.reduce((total, item) => total + Number(item.shipping_cost ?? 0), 0);

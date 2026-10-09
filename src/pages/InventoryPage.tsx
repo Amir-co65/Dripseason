@@ -6,7 +6,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TableScroll, Th, Td } from "@/components/ui/Table";
 import { Input, Select } from "@/components/ui/Field";
 import { formatMoney } from "@/lib/format";
-import { useCategories, useDeleteInventoryItem, useInventoryItems } from "@/hooks/useInventory";
+import { useCategories, useDeleteInventoryItem, useNonArrivingInventoryItems } from "@/hooks/useInventory";
 import { useItemThumbnails } from "@/hooks/useInventory";
 import { ItemThumbnail } from "@/components/inventory/ItemThumbnail";
 import { PublicIdSortSelect } from "@/components/inventory/PublicIdSortSelect";
@@ -37,7 +37,7 @@ export function InventoryPage() {
   const [toDelete, setToDelete] = useState<InventoryRow | null>(null);
   const deleteItem = useDeleteInventoryItem();
 
-  const { data: items, isLoading } = useInventoryItems({
+  const { data: items, isLoading } = useNonArrivingInventoryItems({
     status: status || undefined,
     category: category || undefined,
     search: search || undefined,
